@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
  * Also handles creation and initialization
  */
 @Database(entities = [ActiveTimer::class], version = 1, exportSchema = false)
+@TypeConverters(Converters::class)
 public abstract class PomodoromeDatabase : RoomDatabase() {
 
     abstract fun activeTimerDao(): ActiveTimerDao

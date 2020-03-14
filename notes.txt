@@ -1,0 +1,2 @@
+stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before, was it only when plugged in, or another keyguard method?
+

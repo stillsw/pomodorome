@@ -1,18 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <!-- see BindingAdapters.kt for custom settings -->
+    <data>
+        <variable
+            name="viewmodel"
+            type="com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel" />
+    </data>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".MainActivity">
+
+        <ImageView
+            android:id="@+id/time_picker_background"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:srcCompat="@drawable/ic_timer_background"
+            />
+
+        <com.stillwindsoftware.pomodorome.TimePickerCircle
+            android:id="@+id/time_picker_circle"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:elevation="7dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:activeTimerViewModel="@{viewmodel}"
+            app:minutesColour="@color/timePickerMinutesRange"
+            app:backgroundColour="@color/timePickerBackground"
+            app:thumbColour="@color/timePickerThumb"
+            app:divisionsBackgroundColour="@color/timePickerDivisionsBackground"
+            app:divisionsColour="@color/timePickerDivisions"
+            app:textBackgroundCornerRadius="@dimen/countdownTextBackgroundCornerRadius"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
+            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            app:layout_constraintTop_toTopOf="@id/time_picker_background"
+            app:layout_constraintBottom_toBottomOf="@id/time_picker_background"
+            />
+
+        <com.stillwindsoftware.pomodorome.TimePickerTextView
+            android:id="@+id/countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:elevation="8dp"
+            android:textSize="@dimen/timer_text_size"
+            android:textColor="@color/timerText"
+            android:background="@drawable/dialog_countdown_text_background"
+            android:fontFamily="sans-serif"
+            android:textStyle="normal"
+            android:maxLines="1"
+            android:padding="@dimen/timer_text_horizontal_margin"
+            app:layout_constraintTop_toTopOf="@id/time_picker_circle"
+            app:layout_constraintBottom_toBottomOf="@id/time_picker_circle"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_circle"
+            app:layout_constraintRight_toRightOf="@id/time_picker_circle"
+            />
+
+        <TextView
+            android:id="@+id/timer_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="36dp"
+            android:text="@{Long.toString(viewmodel.timer.timerId)}"
+            app:layout_constraintBottom_toTopOf="@+id/duration"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@{Long.toString(viewmodel.timer.pomodoroDuration)}"
+            app:hideIfZero="@{viewmodel.timer.pomodoroDuration}"
+            app:layout_constraintBottom_toTopOf="@id/rest_duration"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/timer_id" />
+
+        <TextView
+            android:id="@+id/rest_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@{Long.toString(viewmodel.timer.restDuration)}"
+            app:hideIfZero="@{viewmodel.timer.pomodoroDuration}"
+            app:layout_constraintBottom_toTopOf="@id/start"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/duration" />
+
+        <TextView
+            android:id="@+id/start"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@{Long.toString(viewmodel.timer.startTime)}"
+            app:hideIfZero="@{viewmodel.timer.startTime}"
+            app:layout_constraintBottom_toTopOf="@id/paused_accum"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/rest_duration" />
+
+        <TextView
+            android:id="@+id/paused_accum"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@{Long.toString(viewmodel.timer.previousPausesAccumulated)}"
+            app:hideIfZero="@{viewmodel.timer.previousPausesAccumulated}"
+            app:layout_constraintBottom_toTopOf="@id/state"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/start" />
+
+        <TextView
+            android:id="@+id/state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@{viewmodel.timer.timerState.toString()}"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/paused_accum" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>

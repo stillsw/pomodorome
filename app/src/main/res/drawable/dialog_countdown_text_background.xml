@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item app:timerActive="true">
+        <shape>
+            <solid android:color="@color/backgroundActive"/>
+        </shape>
+    </item>
+    <!--item app:timerExpired="true">
+        <shape>
+            <solid android:color="@color/backgroundExpired"/>
+        </shape>
+    </item-->
+</selector>

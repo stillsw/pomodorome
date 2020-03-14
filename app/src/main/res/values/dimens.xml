@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="time_picker_background_shadow">7dp</dimen>
+    <dimen name="timer_text_horizontal_margin">4dp</dimen>
+    <dimen name="timer_text_size">24sp</dimen>
+    <dimen name="countdownTextBackgroundCornerRadius">8dp</dimen>
+</resources>

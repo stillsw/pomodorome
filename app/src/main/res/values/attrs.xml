@@ -7,4 +7,13 @@
         <attr name="timerStopped" format="boolean" />
     </declare-styleable>
 
+    <declare-styleable name="TimePickerCircle">
+        <attr name="minutesColour" format="color" />
+        <attr name="thumbColour" format="color" />
+        <attr name="backgroundColour" format="color" />
+        <attr name="divisionsColour" format="color" />
+        <attr name="divisionsBackgroundColour" format="color" />
+        <attr name="textBackgroundCornerRadius" format="dimension" />
+    </declare-styleable>
+
 </resources>

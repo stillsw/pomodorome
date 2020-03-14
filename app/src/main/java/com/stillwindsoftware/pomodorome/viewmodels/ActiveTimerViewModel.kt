@@ -20,8 +20,6 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
     val timer: LiveData<ActiveTimer>
 
     init {
-        // Gets reference to WordDao from WordRoomDatabase to construct
-        // the correct WordRepository.
         val activeTimerDao = PomodoromeDatabase.getDatabase(application, viewModelScope).activeTimerDao()
         repository = PomodoromeRepository(activeTimerDao)
         timer = repository.timer
