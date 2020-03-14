@@ -9,9 +9,12 @@ apply plugin: 'kotlin-kapt'
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.2"
+    dataBinding {
+        enabled true
+    }
     defaultConfig {
         applicationId "com.stillwindsoftware.pomodorome"
-        minSdkVersion 19
+        minSdkVersion 24
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
@@ -38,7 +41,8 @@ android {
 
 dependencies {
     implementation "androidx.lifecycle:lifecycle-common-java8:2.2.0"
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+// not needed at the moment
+//    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.core:core-ktx:1.2.0'
