@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ActiveTimer states  -->
+    <declare-styleable name="TimerStatefulViews">
+        <attr name="timerActive" format="boolean" />
+        <attr name="timerPaused" format="boolean" />
+        <attr name="timerStopped" format="boolean" />
+    </declare-styleable>
+
+</resources>
