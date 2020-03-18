@@ -19,12 +19,23 @@
             android:id="@+id/time_picker_background"
             android:layout_width="0dp"
             android:layout_height="0dp"
+            android:elevation="0dp"
             app:layout_constraintDimensionRatio="1:1"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/duration"
             app:srcCompat="@drawable/ic_timer_background"
+            android:layout_margin="@dimen/time_picker_margin"
+            />
+        <View
+            android:id="@+id/timer_divider"
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
+            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            app:layout_constraintTop_toTopOf="@id/time_picker_background"
+            app:layout_constraintBottom_toBottomOf="@id/time_picker_background"
             />
 
         <com.stillwindsoftware.pomodorome.TimePickerCircle
@@ -35,12 +46,13 @@
             android:clickable="true"
             android:focusable="true"
             app:activeTimerViewModel="@{viewmodel}"
-            app:minutesColour="@color/timePickerMinutesRange"
+            app:workColour="@color/timePickerWork"
+            app:restColour="@color/timePickerRest"
             app:backgroundColour="@color/timePickerBackground"
             app:thumbColour="@color/timePickerThumb"
+            app:shadowColour="@color/timePickerShadow"
             app:divisionsBackgroundColour="@color/timePickerDivisionsBackground"
             app:divisionsColour="@color/timePickerDivisions"
-            app:textBackgroundCornerRadius="@dimen/countdownTextBackgroundCornerRadius"
             app:layout_constraintDimensionRatio="1:1"
             app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
             app:layout_constraintRight_toRightOf="@id/time_picker_background"
@@ -49,10 +61,46 @@
             />
 
         <com.stillwindsoftware.pomodorome.TimePickerTextView
-            android:id="@+id/countdown"
+            android:id="@+id/work_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/dialog_countdown_text_background"
+            app:supportPartBoldFontStyle="true"
+            app:boldSpanBeginChar="0"
+            app:boldSpanEndChar="2"
+            android:elevation="8dp"
+            android:fontFamily="sans-serif"
+            android:maxLines="1"
+            android:padding="@dimen/timer_text_horizontal_margin"
+            android:textColor="@color/timerText"
+            android:textSize="@dimen/timer_text_size"
+            android:textStyle="normal"
+            app:layout_constraintBottom_toTopOf="@id/timer_divider"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
+            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            />
+
+        <!--TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="1dp"
+            android:elevation="8dp"
+            android:text="@string/work_prompt"
+            android:textColor="@color/timerText"
+            android:textSize="@dimen/timer_emoji_size"
+            app:layout_constraintBottom_toTopOf="@id/work_time"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
+            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            tools:text="@string/work_prompt" /-->
+
+        <com.stillwindsoftware.pomodorome.TimePickerTextView
+            android:id="@+id/rest_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:elevation="8dp"
+            app:supportPartBoldFontStyle="true"
+            app:boldSpanBeginChar="0"
+            app:boldSpanEndChar="2"
             android:textSize="@dimen/timer_text_size"
             android:textColor="@color/timerText"
             android:background="@drawable/dialog_countdown_text_background"
@@ -60,40 +108,40 @@
             android:textStyle="normal"
             android:maxLines="1"
             android:padding="@dimen/timer_text_horizontal_margin"
-            app:layout_constraintTop_toTopOf="@id/time_picker_circle"
-            app:layout_constraintBottom_toBottomOf="@id/time_picker_circle"
-            app:layout_constraintLeft_toLeftOf="@id/time_picker_circle"
-            app:layout_constraintRight_toRightOf="@id/time_picker_circle"
+            app:layout_constraintTop_toBottomOf="@id/timer_divider"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
+            app:layout_constraintRight_toRightOf="@id/time_picker_background"
             />
 
-        <TextView
-            android:id="@+id/timer_id"
+        <!--TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="36dp"
-            android:text="@{Long.toString(viewmodel.timer.timerId)}"
-            app:layout_constraintBottom_toTopOf="@+id/duration"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            android:layout_marginEnd="1dp"
+            android:elevation="8dp"
+            android:text="@string/rest_prompt"
+            android:textColor="@color/timerText"
+            android:textSize="@dimen/timer_emoji_size"
+            app:layout_constraintTop_toBottomOf="@id/rest_time"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
+            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            tools:text="@string/rest_prompt" /-->
 
         <TextView
             android:id="@+id/duration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@{Long.toString(viewmodel.timer.pomodoroDuration)}"
-            app:hideIfZero="@{viewmodel.timer.pomodoroDuration}"
             app:layout_constraintBottom_toTopOf="@id/rest_duration"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/timer_id" />
+            app:layout_constraintTop_toBottomOf="@+id/time_picker_background" />
 
         <TextView
             android:id="@+id/rest_duration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@{Long.toString(viewmodel.timer.restDuration)}"
-            app:hideIfZero="@{viewmodel.timer.pomodoroDuration}"
+            app:hideIfZero="@{viewmodel.timer.restDuration}"
             app:layout_constraintBottom_toTopOf="@id/start"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -130,6 +178,18 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/paused_accum" />
+
+        <androidx.emoji.widget.EmojiAppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="1dp"
+            android:text="@string/work_prompt"
+            android:textColor="@color/timerText"
+            android:textSize="@dimen/timer_text_size"
+            android:textStyle="normal"
+            app:layout_constraintBaseline_toBaselineOf="@id/state"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:text="@string/work_prompt" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

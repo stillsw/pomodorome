@@ -16,8 +16,8 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
 
     // The ViewModel maintains a reference to the repository to get data.
     private val repository: PomodoromeRepository
-    // LiveData gives us updated words when they change.
     val timer: LiveData<ActiveTimer>
+//    val
 
     init {
         val activeTimerDao = PomodoromeDatabase.getDatabase(application, viewModelScope).activeTimerDao()

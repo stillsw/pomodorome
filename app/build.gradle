@@ -74,4 +74,6 @@ dependencies {
 
     // Testing
     androidTestImplementation "androidx.arch.core:core-testing:$rootProject.coreTestingVersion"
+
+    implementation 'androidx.emoji:emoji-appcompat:1.0.0'
 }

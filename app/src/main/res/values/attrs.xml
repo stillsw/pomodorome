@@ -7,13 +7,20 @@
         <attr name="timerStopped" format="boolean" />
     </declare-styleable>
 
+    <declare-styleable name="TimePickerTextView">
+        <attr name="supportPartBoldFontStyle" format="boolean" />
+        <attr name="boldSpanBeginChar" format="integer" />
+        <attr name="boldSpanEndChar" format="integer" />
+    </declare-styleable>
+
     <declare-styleable name="TimePickerCircle">
-        <attr name="minutesColour" format="color" />
+        <attr name="workColour" format="color" />
+        <attr name="restColour" format="color" />
         <attr name="thumbColour" format="color" />
         <attr name="backgroundColour" format="color" />
         <attr name="divisionsColour" format="color" />
+        <attr name="shadowColour" format="color" />
         <attr name="divisionsBackgroundColour" format="color" />
-        <attr name="textBackgroundCornerRadius" format="dimension" />
     </declare-styleable>
 
 </resources>
