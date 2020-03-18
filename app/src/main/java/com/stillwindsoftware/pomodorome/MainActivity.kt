@@ -21,7 +21,8 @@ class MainActivity : AppCompatActivity() {
         binding.lifecycleOwner = this
         binding.viewmodel = viewModel
 
-        time_picker_circle.timePickerTextView = work_time
+        time_picker_circle.timeSettingsArray[TimePickerCircle.WORK].timePickerTextView = work_time
+        time_picker_circle.timeSettingsArray[TimePickerCircle.REST].timePickerTextView = rest_time
 
     }
 
