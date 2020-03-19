@@ -45,10 +45,10 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     }
 
     companion object {
-        const val LOG_TAG = "TimePickerCircle"
-        const val MINUTES = 60f
-        const val WORK = 0;
-        const val REST = 1;
+        private const val LOG_TAG = "TimePickerCircle"
+        private const val MINUTES = 60f
+        const val WORK = 0
+        const val REST = 1
         private const val FULL_CIRCLE = 360f
         private const val QUARTER_CIRCLE = 90f
         private const val TWELVE_OCLOCK = 270f
@@ -58,11 +58,11 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         private const val DEGREES_PER_MINUTE = 6f
 
         // subscripts into the floats array for storing drawing points for the thumbs
-        private const val THUMB_DEGREES = 0;
-        private const val THUMB_X = 1;
-        private const val THUMB_Y = 2;
-        private const val THUMB_POINT_TO_X = 3;
-        private const val THUMB_POINT_TO_Y = 4;
+        private const val THUMB_DEGREES = 0
+        private const val THUMB_X = 1
+        private const val THUMB_Y = 2
+        private const val THUMB_POINT_TO_X = 3
+        private const val THUMB_POINT_TO_Y = 4
     }
 
     private var activity: AppCompatActivity? = null
@@ -85,7 +85,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var minutesRingInnerRadius = 0f
     private var hoursRingInnerRadius = 0f
     private val divisionsPoints = FloatArray(240) // drawn points for lines at the minutes
-    private var currentInput = WORK;
+    private var currentInput = WORK
     private var acceptInput = true
     private var motionEventsPointer: Int = -1
     private var preMotionValue = -1
@@ -94,7 +94,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private val innerCircleRect = RectF()
 
     inner class TimerWidget { // inner class can access outer class's members
-        var timeInMillis = 0L
+        private var timeInMillis = 0L
         var minutesDrawnSweepAngle = -1f
         var minutesDrawnSweepAngleStart = TWELVE_OCLOCK // only rest resets this
         var colour = 0
@@ -102,12 +102,12 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
         var minutes: Int by Delegates.observable(0) { _, _, new ->
 
-            val isWorkTime = timerWidgets.indexOf(this) == WORK;
+            val isWorkTime = timerWidgets.indexOf(this) == WORK
 
             calcSweepAngles(new)
             calcThumbDegrees(new, isWorkTime)
 
-            timeInMillis = (new * 60L) /* 60L */ * 1000L
+            timeInMillis = (new * 60L) * 1000L
             if (acceptInput) timePickerTextView?.setTime(timeInMillis)
 
             Log.v(LOG_TAG, "minutes.observed: value=$new drawnSweepAngle=$minutesDrawnSweepAngle for work=$isWorkTime")
@@ -143,6 +143,12 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
                 thumbFloats[THUMB_DEGREES] += timerWidgets[WORK].thumbFloats[THUMB_DEGREES]
             }
 
+            val radians = toRadians(thumbFloats[THUMB_DEGREES].toDouble()).toFloat()
+            thumbFloats[THUMB_POINT_TO_X] = centreY + (minutesRingInnerRadius * cos(radians))
+            thumbFloats[THUMB_POINT_TO_Y] = centreX + (minutesRingInnerRadius * sin(radians))
+
+            thumbFloats[THUMB_X] = centreY + ((hoursRingInnerRadius - thumbSize / 1.5f) * cos(radians))
+            thumbFloats[THUMB_Y] = centreX + ((hoursRingInnerRadius - thumbSize / 1.5f) * sin(radians))
         }
     }
 
@@ -183,8 +189,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
         centreX = (right - left) / 2f
         centreY = (bottom - top) / 2f
-//        Log.d(LOG_TAG, "onLayout: left=$left, right=$right, centreX=$centreX, top=$top, bottom=$bottom, centreY=$centreY")
-//        Log.d(LOG_TAG, "onLayout: w=${right-left}, paddedw=$paddedWidth, ringsw=$ringsWidth")
+
         minutesRingOuterRadius = drawnPickerRadius - paddedWidth
         minutesRingInnerRadius = minutesRingOuterRadius - ringsWidth
         hoursRingInnerRadius = minutesRingInnerRadius - ringsWidth / 2
@@ -295,10 +300,10 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         paint.color = divisionsBackgroundColour
         canvas.drawCircle(centreX, centreY, minutesRingOuterRadius, paint)
 
+        // arc for minutes for each timer
 
         for ((index, timeSetting) in timerWidgets.withIndex()) {
 
-            // arc for minutes
             paint.color = timeSetting.colour
 
             // work should fill up the whole circle when 0      //Log.d(LOG_TAG, "onDraw: work=${currentInput == WORK} minutes=$minutes")
@@ -328,39 +333,31 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         paint.strokeWidth = divisionsStrokeWidth
         canvas.drawLines(divisionsPoints, paint)
 
-        // thumb affordances
+        // thumbs for each timer
+
         if (acceptInput) {
-            for ((index, timeSetting) in timerWidgets.withIndex()) {
+            for (timerWidget in timerWidgets) {
 
                 // a line from the thumb to where the end of the time setting is (for when the thumb can't be right on it)
 
                 paint.color = divisionsColour
                 paint.strokeWidth = divisionsStrokeWidth
 
-                val thumbDegrees = timeSetting.thumbFloats[THUMB_DEGREES] // - 90f
-                val pointToX = centreY + (minutesRingInnerRadius * cos(toRadians((thumbDegrees).toDouble())))
-                val pointToY = centreX + (minutesRingInnerRadius * sin(toRadians((thumbDegrees).toDouble())))
-
-                val thumbX = centreY + ((hoursRingInnerRadius - thumbSize / 1.5f) * cos(toRadians((thumbDegrees).toDouble())))
-                val thumbY = centreX + ((hoursRingInnerRadius - thumbSize / 1.5f) * sin(toRadians((thumbDegrees).toDouble())))
-
-                canvas.drawLine(thumbX.toFloat(), thumbY.toFloat(), pointToX.toFloat(), pointToY.toFloat(), paint)
+                canvas.drawLine(timerWidget.thumbFloats[THUMB_X], timerWidget.thumbFloats[THUMB_Y], timerWidget.thumbFloats[THUMB_POINT_TO_X], timerWidget.thumbFloats[THUMB_POINT_TO_Y], paint)
 
                 // fill circle
 
                 paint.style = Paint.Style.FILL
-                paint.color = timeSetting.colour
+                paint.color = timerWidget.colour
 
-                canvas.drawCircle(thumbX.toFloat(), thumbY.toFloat(), thumbSize / 2f, paint)
+                canvas.drawCircle(timerWidget.thumbFloats[THUMB_X], timerWidget.thumbFloats[THUMB_Y], thumbSize / 2f, paint)
 
-                // and outline
+                // outline
 
                 paint.strokeWidth = divisionsStrokeWidth * 3f
                 paint.style = Paint.Style.STROKE
                 paint.color = bezelColour
-                canvas.drawCircle(thumbX.toFloat(), thumbY.toFloat(), thumbSize / 2f, paint)
-
-
+                canvas.drawCircle(timerWidget.thumbFloats[THUMB_X], timerWidget.thumbFloats[THUMB_Y], thumbSize / 2f, paint)
             }
         }
     }
@@ -396,7 +393,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 }
 
 
-class TimePickerTextView : TimerStatefulTextView, TimerStatefulView {
+class TimePickerTextView : TimerStatefulTextView {
     constructor(context: Context) : super(context)
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
@@ -455,7 +452,6 @@ class TimePickerTextView : TimerStatefulTextView, TimerStatefulView {
             val spannable = SpannableString(newText)
 
             if (boldTextBeginAtChar < newText.length) {
-//                Log.v(LOG_TAG, "setTime: spanning text $newText bold starts $boldTextBeginAtChar end ${if (boldTextEndAtChar == -1) newText.length else min(boldTextEndAtChar, newText.length)} (endchar=$boldTextEndAtChar, len=${newText.length})")
                 spannable.setSpan(boldTypefaceSpan, boldTextBeginAtChar, if (boldTextEndAtChar == -1) newText.length else min(boldTextEndAtChar, newText.length), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
 
@@ -472,12 +468,7 @@ class TimePickerTextView : TimerStatefulTextView, TimerStatefulView {
     }
 }
 
-interface TimerStatefulView {
-    fun testActiveTimerStates(activeTimer: ActiveTimer?)
-    fun clearActiveTimerStates()
-}
-
-open class TimerStatefulTextView : AppCompatTextView, TimerStatefulView {
+open class TimerStatefulTextView : AppCompatTextView {
     constructor(context: Context) : super(context)
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
@@ -503,19 +494,18 @@ open class TimerStatefulTextView : AppCompatTextView, TimerStatefulView {
         }
     }
 
-    override fun testActiveTimerStates(activeTimer: ActiveTimer?) {
+    fun testActiveTimerStates(activeTimer: ActiveTimer?) {
         if (timerStateType != activeTimer?.timerState) {
             timerStateType = activeTimer?.timerState
             refreshDrawableState()
         }
     }
 
-    override fun clearActiveTimerStates() {
+    fun clearActiveTimerStates() {
         timerStateType = null
         refreshDrawableState()
     }
 }
-
 
 class CustomTypefaceSpan(family: String, private val newType: Typeface) : TypefaceSpan(family) {
 
@@ -526,7 +516,6 @@ class CustomTypefaceSpan(family: String, private val newType: Typeface) : Typefa
     override fun updateMeasureState(paint: TextPaint) {
         applyCustomTypeFace(paint, newType)
     }
-
 
     private fun applyCustomTypeFace(paint: Paint, tf: Typeface) {
         val oldStyle: Int
