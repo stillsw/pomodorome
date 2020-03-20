@@ -76,7 +76,6 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var shadow = 0
     private var paddedWidth = 0f
     private var thumbSize = 0f
-    private var thumbWidth = 0f
     private var totalRadius = 1f
     private var drawnPickerRadius = 1f
     private var centreX: Float = 0f
@@ -88,7 +87,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var currentInput = WORK
     private var acceptInput = true
     private var motionEventsPointer: Int = -1
-    private var preMotionValue = -1
+    private var minutesOnTouchDown = -1
     private lateinit var paint: Paint
     private val minutesRingRect = RectF()
     private val innerCircleRect = RectF()
@@ -133,6 +132,8 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
          * adjust position to accommodate the other
          */
         private fun calcThumbDegrees(newMins: Int, isWorkTime: Boolean) {
+            //todo also test if thumbs did previously overlap, in which case might be releasing that overlap now
+
             thumbFloats[THUMB_DEGREES] = newMins * DEGREES_PER_MINUTE
 
             if (isWorkTime) {    // calc own degrees, but then also recurse for rest
@@ -149,6 +150,43 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
             thumbFloats[THUMB_X] = centreY + ((hoursRingInnerRadius - thumbSize / 1.5f) * cos(radians))
             thumbFloats[THUMB_Y] = centreX + ((hoursRingInnerRadius - thumbSize / 1.5f) * sin(radians))
+
+            // test for overlap of thumbs
+
+            val distanceSquared = getDistanceSquared(timerWidgets[WORK].thumbFloats[THUMB_X], timerWidgets[WORK].thumbFloats[THUMB_Y],
+                                                           timerWidgets[REST].thumbFloats[THUMB_X], timerWidgets[REST].thumbFloats[THUMB_Y])
+
+            if (distanceSquared > 0f && distanceSquared < thumbSize * thumbSize) { // will be 0 when first of them is being initialized
+                val dist = sqrt(distanceSquared)
+                Log.d(LOG_TAG, "calcThumbDegrees: thumbs overlap by ${thumbSize - dist} (dist=$dist thumb=$thumbSize squaredDist=$distanceSquared)")
+
+                val midPointPointedTo =
+                    if (timerWidgets[REST].minutes == 0) {    // means the 2 thumbs point to the exact same place
+                    }
+                    else {
+
+                    }
+            }
+        }
+
+        fun updateMinutes(newMinutes: Int) {
+            if (timerWidgets.indexOf(this) == WORK) {
+                //Log.d(LOG_TAG, "updateMinutes: work")
+                if (newMinutes != minutes) {
+                    minutes = newMinutes
+                }
+            }
+            else { // rest is more complicated, it's relative to work minutes
+                var restMinutes = newMinutes - timerWidgets[WORK].minutes
+                if (restMinutes < 0) {
+                    restMinutes += 60           // means the user moved past 12 o'clock
+                }
+
+                if (restMinutes != minutes) {
+                    //Log.d(LOG_TAG, "updateMinutes: rest (was=$minutes, work=${timerWidgets[WORK].minutes}, new=$restMinutes)")
+                    minutes = restMinutes
+                }
+            }
         }
     }
 
@@ -181,7 +219,6 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         paddedWidth = minSize * PADDED_WIDTH_PERCENT
         ringsWidth = minSize * RINGS_WIDTH_PERCENT
         thumbSize = ringsWidth * 2f
-        thumbWidth = thumbSize
         divisionsStrokeWidth = max(minSize * DIVISIONS_STROKE_WIDTH_PERCENT, 1f)
 
         totalRadius = minSize / 2f
@@ -246,26 +283,30 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         when (event.action and MotionEvent.ACTION_MASK) {
 
             MotionEvent.ACTION_DOWN -> {
-                preMotionValue = getValueFromAngle(centreRelX, centreRelY)
+                //todo this is all more complicated because if it's rest timer moving
+                //todo it has to be the minutes counting from the end of the work timer
 
-                //todo decide which timer is appropriate to activate
+                minutesOnTouchDown = getMinutesFromAngle(centreRelX, centreRelY)
 
-                Log.v(LOG_TAG, "onTouch: down $centreRelX/$centreRelY")
+                // decide which timer is appropriate to activate (use the actual touch point not the relative to centre point)
+                allocateTouchToTimer(minutesOnTouchDown, event.x, event.y)
+                timerWidgets[currentInput].updateMinutes(minutesOnTouchDown)
+//                Log.v(LOG_TAG, "onTouch: down $centreRelX/$centreRelY")
             }
             MotionEvent.ACTION_MOVE -> {
-                val newValue = getValueFromAngle(centreRelX, centreRelY)
-                if (newValue != timerWidgets[currentInput].minutes) timerWidgets[currentInput].minutes = newValue
-                Log.v(LOG_TAG, "onTouch: move $centreRelX/$centreRelY")
+                timerWidgets[currentInput].updateMinutes(getMinutesFromAngle(centreRelX, centreRelY))
+//                Log.v(LOG_TAG, "onTouch: move $centreRelX/$centreRelY")
             }
             MotionEvent.ACTION_UP -> {
-                val value = getValueFromAngle(centreRelX, centreRelY)
+                val value = getMinutesFromAngle(centreRelX, centreRelY)
 
                 //todo update the view model here?
 
                 Log.v(LOG_TAG, "onTouch: up $centreRelX/$centreRelY")
             }
             MotionEvent.ACTION_CANCEL -> {
-                timerWidgets[WORK].minutes = preMotionValue
+                // todo how to handle this?
+                timerWidgets[WORK].minutes = minutesOnTouchDown
                 Log.v(LOG_TAG, "onTouch: cancel $centreRelX/$centreRelY")
             }
         }
@@ -275,9 +316,51 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         return true
     }
 
-    private fun getValueFromAngle(centreRelX: Float, centreRelY: Float): Int {
+    /**
+     * Algorithm to decide from the touch placement which timer is being moved
+     */
+    private fun allocateTouchToTimer(minutesOnTouchDown: Int, touchX: Float, touchY: Float) {
+
+        // compare distances from touch to thumbs, if within a short distance of one take it
+        val distToWork = getDistanceSquared(touchX, touchY, timerWidgets[WORK].thumbFloats[THUMB_X], timerWidgets[WORK].thumbFloats[THUMB_Y])
+        val distToRest = getDistanceSquared(touchX, touchY, timerWidgets[REST].thumbFloats[THUMB_X], timerWidgets[REST].thumbFloats[THUMB_Y])
+
+        if (min(distToWork, distToRest) < (thumbSize * thumbSize * 4)) { // twice the size of a thumb
+            currentInput = if (distToWork <= distToRest) WORK else REST
+            Log.d(LOG_TAG, "allocateTouchToTimer: touch within 2 widths of thumb for ${if (currentInput == 0) "work" else "rest"}")
+            return
+        }
+
+        // as the rest timing can overlap the work timing, check it first
+        // note, adding them together could exceed 60 (mins on clock), so calc the ranges first
+
+        val restEndMinutes = timerWidgets[WORK].minutes + timerWidgets[REST].minutes
+
+        if (restEndMinutes > 60 && minutesOnTouchDown <= restEndMinutes % 60
+            || (minutesOnTouchDown >= timerWidgets[WORK].minutes
+                    && minutesOnTouchDown <= restEndMinutes)) {
+            currentInput = REST
+            Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of rest")
+        }
+        else if (minutesOnTouchDown <= timerWidgets[WORK].minutes) {        // not in range of rest, range of work is simple test
+            currentInput = WORK
+            Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of work")
+        }
+        else {                                                              // neither work nor rest range, so it's somewhere in the white space, just go for nearer
+            currentInput = if (distToWork < distToRest) WORK else REST      // < ensures that if they are same rest is chosen, otherwise would always follow work and if rest is 0 it's impossible to set it
+            Log.d(LOG_TAG, "allocateTouchToTimer: touch outside of ranges, set to nearest = ${if (currentInput == 0) "work" else "rest"}")
+        }
+    }
+
+    private fun getDistanceSquared(x1: Float, y1: Float, x2: Float, y2: Float): Float {
+        val vx = x1 - x2
+        val vy = y1 - y2
+        return vx * vx + vy * vy
+    }
+
+    private fun getMinutesFromAngle(centreRelX: Float, centreRelY: Float): Int {
         val deg = toDegrees(abs(atan2(centreRelX, centreRelY) - PI)).toFloat()
-        val newValue = ((deg / 360) * MINUTES).toInt()
+        val newValue = ((deg / FULL_CIRCLE) * MINUTES).toInt()
         Log.v(LOG_TAG, "getValueFromAngle: degrees=$deg gives value=$newValue")
         return newValue
     }
