@@ -4,12 +4,14 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.*
+import android.os.Build
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextPaint
 import android.text.style.TypefaceSpan
 import android.util.AttributeSet
 import android.util.Log
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -28,9 +30,10 @@ import kotlin.properties.Delegates
 
 /**
  * Adaptation of the view class first made for StoveMultiTimer
- * There's no need for things like hiding the keyboard here as the interface is just for ticking over the timer
+ * There's no need for things like hiding the keyboard here as the widgit is
+ * just for visually editing the timers and for ticking them over
  *
- * Other views which form part of this are below
+ * Supporting classes which form part of this are underneath
  */
 class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
@@ -51,53 +54,73 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         const val REST = 1
         private const val FULL_CIRCLE = 360f
         private const val QUARTER_CIRCLE = 90f
-        private const val TWELVE_OCLOCK = 270f
+        private const val TWELVE_O_CLOCK = 270f
         private const val PADDED_WIDTH_PERCENT = .038f
         private const val RINGS_WIDTH_PERCENT = .055f
         private const val DIVISIONS_STROKE_WIDTH_PERCENT = .005f
         private const val DEGREES_PER_MINUTE = 6f
-
-        // subscripts into the floats array for storing drawing points for the thumbs
-        private const val THUMB_DEGREES = 0
-        private const val THUMB_X = 1
-        private const val THUMB_Y = 2
-        private const val THUMB_POINT_TO_X = 3
-        private const val THUMB_POINT_TO_Y = 4
     }
 
     private var activity: AppCompatActivity? = null
     private var backgroundColour = 0
     private var bezelColour = 0
     private var shadowColour = 0
+    private var thumbShineColour = 0
     private var divisionsColour = 0
     private var divisionsBackgroundColour = 0
     private var ringsWidth = 1f
     private var divisionsStrokeWidth = 1f
-    private var shadow = 0
+    private var shadowWidth = 0f
     private var paddedWidth = 0f
     private var thumbSize = 0f
+    private var thumbRadius = 0f
     private var totalRadius = 1f
     private var drawnPickerRadius = 1f
-    private var centreX: Float = 0f
-    private var centreY: Float = 0f
-    private var minutesRingOuterRadius: Float = 0f
+    private var minutesRingOuterRadius = 0f
     private var minutesRingInnerRadius = 0f
     private var hoursRingInnerRadius = 0f
+    private var thumbRingRadius = 0f
+    private var thumbRingCircumference = 0f
+    private var thumbOverlapDegreesShift = 0f     // the amount to shift thumbs on their ring around the circle when overlapping
     private val divisionsPoints = FloatArray(240) // drawn points for lines at the minutes
     private var currentInput = WORK
     private var acceptInput = true
-    private var motionEventsPointer: Int = -1
+    private var motionEventsPointer = -1
     private var minutesOnTouchDown = -1
-    private lateinit var paint: Paint
     private val minutesRingRect = RectF()
     private val innerCircleRect = RectF()
+    private var centrePoint = PointF()
+    private lateinit var paint: Paint
+    // accessed from MainActivity
+    internal val timerWidgets = arrayOf(TimerWidget(), TimerWidget())
 
+    // Data binding calls this, but it can be before or after onSizeChanged()
+    // see comments on beginObservingViewModel()
+    var activeTimerViewModel: ActiveTimerViewModel? = null
+        set(value) {
+            if (centrePoint.x != 0f) {
+                beginObservingViewModel()
+            }
+            field = value
+        }
+
+    //private val tempOverlapPointTo = PointF()   // uncomment all references to test overlap mid point
+
+    /**
+     * Encapsulates timer values for drawing and text items
+     * Minutes is an observable delegate, all the calculations are triggered when
+     * that value is set
+     */
     inner class TimerWidget { // inner class can access outer class's members
         private var timeInMillis = 0L
+        private var thumbDegrees = 0f
         var minutesDrawnSweepAngle = -1f
-        var minutesDrawnSweepAngleStart = TWELVE_OCLOCK // only rest resets this
+        var minutesDrawnSweepAngleStart = TWELVE_O_CLOCK // only rest resets this
         var colour = 0
-        val thumbFloats = floatArrayOf(0f, 0f, 0f, 0f, 0f)
+        var timePickerTextView: TimePickerTextView? = null
+        val thumbPointTo = PointF()     // where on the clock face the degrees points to
+        val thumbPos = PointF()         // where the thumb is calculated to be, free of interference
+        val thumbShowPos = PointF()     // where the thumb is displayed, might be shifted by proximity to the other timer
 
         var minutes: Int by Delegates.observable(0) { _, _, new ->
 
@@ -107,150 +130,218 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             calcThumbDegrees(new, isWorkTime)
 
             timeInMillis = (new * 60L) * 1000L
-            if (acceptInput) timePickerTextView?.setTime(timeInMillis)
+            //todo update view model if accept input is on AND millis is changed (view model will check that)
+            //todo or perhaps only with onTouch UP
+            if (acceptInput) {
+                timePickerTextView?.setTime(timeInMillis)
+                    ?: Log.w(LOG_TAG, "TimerWidget.minutes.observed: no time picker yet")
+            }
 
             Log.v(LOG_TAG, "minutes.observed: value=$new drawnSweepAngle=$minutesDrawnSweepAngle for work=$isWorkTime")
             invalidate() // cause a redraw
         }
 
-        var timePickerTextView: TimePickerTextView? = null
-
         /**
          * For rest time have to take into account the work time.
-         * Doing it here is better than re-calculating in onDraw()
          */
         private fun calcSweepAngles(newMins: Int) {
             minutesDrawnSweepAngle = newMins / MINUTES * FULL_CIRCLE
 
             // start of rest changes depending on work, for safety always re-calc here
-            timerWidgets[REST].minutesDrawnSweepAngleStart = TWELVE_OCLOCK + timerWidgets[WORK].minutesDrawnSweepAngle
+            timerWidgets[REST].minutesDrawnSweepAngleStart = TWELVE_O_CLOCK + timerWidgets[WORK].minutesDrawnSweepAngle
         }
 
         /**
          * Like sweep angle, for rest time have to take into account the work time
-         * but this has extra complication, thumbs may want to overlap, so both may have
-         * adjust position to accommodate the other
+         * but this has extra complication, thumbs may want to overlap, then both
+         * adjust position to accommodate the each other
          */
-        private fun calcThumbDegrees(newMins: Int, isWorkTime: Boolean) {
-            //todo also test if thumbs did previously overlap, in which case might be releasing that overlap now
+        private fun calcThumbDegrees(newMins: Int, isWorkTime: Boolean, isRecursiveCall: Boolean = false) {
 
-            thumbFloats[THUMB_DEGREES] = newMins * DEGREES_PER_MINUTE
+            thumbDegrees = newMins * DEGREES_PER_MINUTE
 
             if (isWorkTime) {    // calc own degrees, but then also recurse for rest
-                thumbFloats[THUMB_DEGREES] += -QUARTER_CIRCLE
-                timerWidgets[REST].calcThumbDegrees(timerWidgets[REST].minutes, false)
+                thumbDegrees += -QUARTER_CIRCLE
+                timerWidgets[REST].calcThumbDegrees(timerWidgets[REST].minutes, isWorkTime = false, isRecursiveCall = true)
             }
             else {
-                thumbFloats[THUMB_DEGREES] += timerWidgets[WORK].thumbFloats[THUMB_DEGREES]
+                thumbDegrees += timerWidgets[WORK].thumbDegrees
             }
 
-            val radians = toRadians(thumbFloats[THUMB_DEGREES].toDouble()).toFloat()
-            thumbFloats[THUMB_POINT_TO_X] = centreY + (minutesRingInnerRadius * cos(radians))
-            thumbFloats[THUMB_POINT_TO_Y] = centreX + (minutesRingInnerRadius * sin(radians))
+            with(toRadians(thumbDegrees.toDouble()).toFloat()) {
+                thumbPointTo.set(centrePoint.y + minutesRingInnerRadius * cos(this),
+                                 centrePoint.x + minutesRingInnerRadius * sin(this))
+                thumbPos.set(centrePoint.y + thumbRingRadius * cos(this),
+                             centrePoint.x + thumbRingRadius * sin(this))
+            }
 
-            thumbFloats[THUMB_X] = centreY + ((hoursRingInnerRadius - thumbSize / 1.5f) * cos(radians))
-            thumbFloats[THUMB_Y] = centreX + ((hoursRingInnerRadius - thumbSize / 1.5f) * sin(radians))
-
-            // test for overlap of thumbs
-
-            val distanceSquared = getDistanceSquared(timerWidgets[WORK].thumbFloats[THUMB_X], timerWidgets[WORK].thumbFloats[THUMB_Y],
-                                                           timerWidgets[REST].thumbFloats[THUMB_X], timerWidgets[REST].thumbFloats[THUMB_Y])
-
-            if (distanceSquared > 0f && distanceSquared < thumbSize * thumbSize) { // will be 0 when first of them is being initialized
-                val dist = sqrt(distanceSquared)
-                Log.d(LOG_TAG, "calcThumbDegrees: thumbs overlap by ${thumbSize - dist} (dist=$dist thumb=$thumbSize squaredDist=$distanceSquared)")
-
-                val midPointPointedTo =
-                    if (timerWidgets[REST].minutes == 0) {    // means the 2 thumbs point to the exact same place
-                    }
-                    else {
-
-                    }
+            // when called for rest time while setting work time, it's redundant to go further
+            if (!isRecursiveCall) {
+                handleOverlappingThumbs()
             }
         }
 
-        fun updateMinutes(newMinutes: Int) {
-            if (timerWidgets.indexOf(this) == WORK) {
-                //Log.d(LOG_TAG, "updateMinutes: work")
-                if (newMinutes != minutes) {
-                    minutes = newMinutes
+        /**
+         * back off each thumb by half the distance, work to left (anti-clockwise),
+         * rest to right (clockwise) unless rest is nearly up behind work
+         */
+        private fun handleOverlappingThumbs() {
+            // for testing: tempOverlapPointTo.set(0f, 0f)  // test for overlap of thumbs
+
+            val distanceSquared = getDistanceSquared(
+                timerWidgets[WORK].thumbPos.x, timerWidgets[WORK].thumbPos.y,
+                timerWidgets[REST].thumbPos.x, timerWidgets[REST].thumbPos.y)
+
+            // no interference between thumb positions, reset and done
+            // when change orientation both thumbs are at 0,0 so check for that too, it will be
+            // corrected when the 2nd thumb's position is calculated
+            if (distanceSquared > thumbSize * thumbSize
+                || (distanceSquared == 0f && timerWidgets[WORK].thumbShowPos.equals(0f, 0f))) {
+                timerWidgets[WORK].thumbShowPos.set(timerWidgets[WORK].thumbPos)
+                timerWidgets[REST].thumbShowPos.set(timerWidgets[REST].thumbPos)
+                return
+            }
+
+            val dist = sqrt(distanceSquared)
+            Log.d(LOG_TAG,"handleOverlappingThumbs: thumbs overlap by ${thumbSize - dist} (dist=$dist thumb=$thumbSize)")
+
+            val midPointPointedTo = if (dist == 0f) { thumbPointTo }  // means the 2 thumbs point to the exact same place
+            else {
+                val vx = timerWidgets[WORK].thumbPointTo.x - timerWidgets[REST].thumbPointTo.x
+                val vy = timerWidgets[WORK].thumbPointTo.y - timerWidgets[REST].thumbPointTo.y
+
+                PointF(vx / 2f,vy / 2f)
+                    .apply {    // got the vector to midpoint, subtract from 1st point to get the mid
+                        Log.d(LOG_TAG, "calcThumbDegrees: Overlap, vector to midpoint $this (work=${timerWidgets[WORK].thumbPointTo} rest=${timerWidgets[REST].thumbPointTo}")
+                        x = timerWidgets[WORK].thumbPointTo.x - x
+                        y = timerWidgets[WORK].thumbPointTo.y - y
+                    }.also {
+                        Log.d(LOG_TAG, "calcThumbDegrees: Overlap, point to midpoint $it")
+                    }
+            }
+            // for testing: tempOverlapPointTo.set(midPointPointedTo.x, midPointPointedTo.y)
+
+            val midPointDegrees = toDegrees(abs(atan2(midPointPointedTo.x - centrePoint.x, midPointPointedTo.y - centrePoint.y) - PI))
+
+            val left = with(toRadians(midPointDegrees - thumbOverlapDegreesShift + 270f).toFloat()) {
+                PointF(centrePoint.y + thumbRingRadius * cos(this),centrePoint.x + thumbRingRadius * sin(this))
+            }
+
+            val right= with(toRadians(midPointDegrees + thumbOverlapDegreesShift + 270f).toFloat()) {
+                PointF(centrePoint.y + thumbRingRadius * cos(this),centrePoint.x + thumbRingRadius * sin(this))
+            }
+
+            // overlapped with large rest angle must mean rest is on the left
+            (timerWidgets[REST].minutesDrawnSweepAngle < QUARTER_CIRCLE).also { isRestOnRight ->
+                    timerWidgets[if (isRestOnRight) WORK else REST].thumbShowPos.set(left)
+                    timerWidgets[if (isRestOnRight) REST else WORK].thumbShowPos.set(right)
+            }
+        }
+
+        /**
+         * Test for the new value different to old so avoid triggering delegate
+         */
+        fun updateMinutes(toMinutes: Int) {
+
+            var newMinutes = toMinutes
+
+            // rest is relative to work minutes
+            if (timerWidgets.indexOf(this) != WORK) {
+                newMinutes = with(toMinutes - timerWidgets[WORK].minutes) {
+                    if (this < 0) this + 60 else this  // moved past 12 o'clock
                 }
             }
-            else { // rest is more complicated, it's relative to work minutes
-                var restMinutes = newMinutes - timerWidgets[WORK].minutes
-                if (restMinutes < 0) {
-                    restMinutes += 60           // means the user moved past 12 o'clock
-                }
 
-                if (restMinutes != minutes) {
-                    //Log.d(LOG_TAG, "updateMinutes: rest (was=$minutes, work=${timerWidgets[WORK].minutes}, new=$restMinutes)")
-                    minutes = restMinutes
-                }
+            // only update when values differ
+            if (newMinutes != minutes) {
+                minutes = newMinutes
             }
         }
     }
 
-    val timerWidgets = arrayOf(TimerWidget(), TimerWidget())
-
+    /**
+     * Called from each of the constructors
+     */
     private fun init(attrs: AttributeSet) {
         getActivity()
-        val typedArray = context.obtainStyledAttributes(attrs, R.styleable.TimePickerCircle, 0, 0)
-        timerWidgets[WORK].colour = typedArray.getColor(R.styleable.TimePickerCircle_workColour, resources.getColor(R.color.colorAccent, null))
-        timerWidgets[REST].colour = typedArray.getColor(R.styleable.TimePickerCircle_restColour, resources.getColor(R.color.colorAccent, null))
-        backgroundColour = typedArray.getColor(R.styleable.TimePickerCircle_backgroundColour, resources.getColor(android.R.color.white, null))
-        shadowColour = typedArray.getColor(R.styleable.TimePickerCircle_shadowColour, backgroundColour)
-        divisionsBackgroundColour = typedArray.getColor(R.styleable.TimePickerCircle_divisionsBackgroundColour, backgroundColour)
-        divisionsColour = typedArray.getColor(R.styleable.TimePickerCircle_divisionsColour, resources.getColor(android.R.color.black, null))
-        bezelColour = typedArray.getColor(R.styleable.TimePickerCircle_bezelColour, resources.getColor(android.R.color.black, null))
 
-        typedArray.recycle()
+        shadowWidth = resources.getDimension(R.dimen.time_picker_background_shadow)
+
+        with(context.obtainStyledAttributes(attrs, R.styleable.TimePickerCircle, 0, 0)) {
+            timerWidgets[WORK].colour = getColor(R.styleable.TimePickerCircle_workColour, resources.getColor(R.color.colorAccent, null))
+            timerWidgets[REST].colour = getColor(R.styleable.TimePickerCircle_restColour, resources.getColor(R.color.colorAccent, null))
+            backgroundColour = getColor(R.styleable.TimePickerCircle_backgroundColour, resources.getColor(android.R.color.white, null))
+            shadowColour = getColor(R.styleable.TimePickerCircle_shadowColour, backgroundColour)
+            divisionsBackgroundColour = getColor(R.styleable.TimePickerCircle_divisionsBackgroundColour, backgroundColour)
+            divisionsColour = getColor(R.styleable.TimePickerCircle_divisionsColour, resources.getColor(android.R.color.black, null))
+            bezelColour = getColor(R.styleable.TimePickerCircle_bezelColour, resources.getColor(android.R.color.black, null))
+            thumbShineColour = resources.getColor(R.color.timePickerThumbShine, null)
+            recycle()
+        }
 
         paint = Paint()
 
         setOnTouchListener(this)
     }
 
-    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        super.onLayout(changed, left, top, right, bottom)
+    /**
+     * Initialize sizes, widths and points to simplify calculations for drawing
+     * Note: at the end, if there's already a view model present it starts the
+     * observer, this is to handle onSizeChanged being called after the view model
+     * is set by the data binding which happens after orientation changes
+     */
+    override fun onSizeChanged(sizeWidth: Int, sizeHeight: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(sizeWidth, sizeHeight, oldw, oldh)
 
-        val minSize = min(right - left, bottom - top).toFloat()
+        Log.d(LOG_TAG, "onSizeChanged:")
 
-        shadow = resources.getDimension(R.dimen.time_picker_background_shadow).toInt()
+        val minSize = min(sizeWidth, sizeHeight).toFloat()
+        centrePoint.set(sizeWidth / 2f, sizeHeight / 2f)
+
         paddedWidth = minSize * PADDED_WIDTH_PERCENT
         ringsWidth = minSize * RINGS_WIDTH_PERCENT
-        thumbSize = ringsWidth * 2f
+        thumbRadius = ringsWidth
+        thumbSize = thumbRadius * 2f
         divisionsStrokeWidth = max(minSize * DIVISIONS_STROKE_WIDTH_PERCENT, 1f)
 
         totalRadius = minSize / 2f
         drawnPickerRadius = totalRadius - paddedWidth * 1.6f
 
-        centreX = (right - left) / 2f
-        centreY = (bottom - top) / 2f
-
         minutesRingOuterRadius = drawnPickerRadius - paddedWidth
         minutesRingInnerRadius = minutesRingOuterRadius - ringsWidth
-        hoursRingInnerRadius = minutesRingInnerRadius - ringsWidth / 2
+        hoursRingInnerRadius = minutesRingInnerRadius - ringsWidth / 2f
+
+        thumbRingRadius = hoursRingInnerRadius - thumbSize / 1.5f           // the ring where the thumb is placed around the clock
+        thumbRingCircumference = (2f * PI * thumbRingRadius).toFloat()
+
+        // for shifting the thumbs when they overlap will need the degrees difference
+        // for size of the thumb (using just more than radius for stroke width, hence 1.8 and not 2)
+        // formula for len of an arc = (degrees / 360) * circumference
+        thumbOverlapDegreesShift = thumbSize / 1.8f * FULL_CIRCLE / thumbRingCircumference
 
         // need a rect to be able to draw the arc for minutes
         val minutesRectOffset = totalRadius - minutesRingOuterRadius
-        minutesRingRect.set(minutesRectOffset, minutesRectOffset, right - left - minutesRectOffset, bottom - top - minutesRectOffset)
+        minutesRingRect.set(minutesRectOffset, minutesRectOffset, sizeWidth - minutesRectOffset, sizeHeight - minutesRectOffset)
         val innerCircleOffset = minutesRectOffset + ringsWidth * 1.5f
-        innerCircleRect.set(innerCircleOffset, innerCircleOffset, right - left - innerCircleOffset, bottom - top - innerCircleOffset)
+        innerCircleRect.set(innerCircleOffset, innerCircleOffset, sizeWidth - innerCircleOffset, sizeHeight - innerCircleOffset)
 
         // setup the points for the minutes/hours drawn lines
         var i = 0
         for (minute in 0 .. 59) {
             val angle = minute / MINUTES * 360f
             val rads = toRadians((angle + 270).toDouble())
-            val outerCx = centreX + (cos(rads) * minutesRingOuterRadius).toFloat()
-            val outerCy = centreY + (sin(rads) * minutesRingOuterRadius).toFloat()
-            val innerCx = centreX + (cos(rads) * if (minute % 5 == 0) hoursRingInnerRadius else minutesRingInnerRadius).toFloat()
-            val innerCy = centreY + (sin(rads) * if (minute % 5 == 0) hoursRingInnerRadius else minutesRingInnerRadius).toFloat()
+            val outerCx = centrePoint.x + (cos(rads) * minutesRingOuterRadius).toFloat()
+            val outerCy = centrePoint.y + (sin(rads) * minutesRingOuterRadius).toFloat()
+            val innerCx = centrePoint.x + (cos(rads) * if (minute % 5 == 0) hoursRingInnerRadius else minutesRingInnerRadius).toFloat()
+            val innerCy = centrePoint.y + (sin(rads) * if (minute % 5 == 0) hoursRingInnerRadius else minutesRingInnerRadius).toFloat()
             divisionsPoints[i++] = outerCx
             divisionsPoints[i++] = outerCy
             divisionsPoints[i++] = innerCx
             divisionsPoints[i++] = innerCy
         }
+
+        // see function comment, only if already have a view model
+        activeTimerViewModel?.let {  beginObservingViewModel() }
     }
 
     override fun onTouch(v: View?, event: MotionEvent?): Boolean {
@@ -265,8 +356,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             val pointerIndex = event.action and MotionEvent.ACTION_POINTER_INDEX_MASK shr MotionEvent.ACTION_POINTER_INDEX_SHIFT
             val pointerId = event.getPointerId(pointerIndex)
 
-            // ignore it as it wasn't the pointer that went down first and flag
-            // indicates only interested in first pointer down
+            // ignore it as it wasn't the pointer first down that's being tracked
             if (pointerId != motionEventsPointer) {
                 return true
             }
@@ -280,40 +370,24 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             return true
         }
 
-        when (event.action and MotionEvent.ACTION_MASK) {
+
+        when (event.action and MotionEvent.ACTION_MASK) {   // only need down and move
 
             MotionEvent.ACTION_DOWN -> {
-                //todo this is all more complicated because if it's rest timer moving
-                //todo it has to be the minutes counting from the end of the work timer
-
                 minutesOnTouchDown = getMinutesFromAngle(centreRelX, centreRelY)
 
-                // decide which timer is appropriate to activate (use the actual touch point not the relative to centre point)
+                // decide which timer is appropriate to activate
+                // (use the actual touch point not the relative to centre point)
                 allocateTouchToTimer(minutesOnTouchDown, event.x, event.y)
                 timerWidgets[currentInput].updateMinutes(minutesOnTouchDown)
-//                Log.v(LOG_TAG, "onTouch: down $centreRelX/$centreRelY")
             }
             MotionEvent.ACTION_MOVE -> {
                 timerWidgets[currentInput].updateMinutes(getMinutesFromAngle(centreRelX, centreRelY))
-//                Log.v(LOG_TAG, "onTouch: move $centreRelX/$centreRelY")
-            }
-            MotionEvent.ACTION_UP -> {
-                val value = getMinutesFromAngle(centreRelX, centreRelY)
-
-                //todo update the view model here?
-
-                Log.v(LOG_TAG, "onTouch: up $centreRelX/$centreRelY")
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                // todo how to handle this?
-                timerWidgets[WORK].minutes = minutesOnTouchDown
-                Log.v(LOG_TAG, "onTouch: cancel $centreRelX/$centreRelY")
             }
         }
 
-        invalidate()
-
-        return true
+        invalidate()    // make sure to redraw the screen
+        return true     // touch handled
     }
 
     /**
@@ -322,11 +396,11 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private fun allocateTouchToTimer(minutesOnTouchDown: Int, touchX: Float, touchY: Float) {
 
         // compare distances from touch to thumbs, if within a short distance of one take it
-        val distToWork = getDistanceSquared(touchX, touchY, timerWidgets[WORK].thumbFloats[THUMB_X], timerWidgets[WORK].thumbFloats[THUMB_Y])
-        val distToRest = getDistanceSquared(touchX, touchY, timerWidgets[REST].thumbFloats[THUMB_X], timerWidgets[REST].thumbFloats[THUMB_Y])
+        val distToWork = getDistanceSquared(touchX, touchY, timerWidgets[WORK].thumbPos.x, timerWidgets[WORK].thumbPos.y)
+        val distToRest = getDistanceSquared(touchX, touchY, timerWidgets[REST].thumbPos.x, timerWidgets[REST].thumbPos.y)
 
         if (min(distToWork, distToRest) < (thumbSize * thumbSize * 4)) { // twice the size of a thumb
-            currentInput = if (distToWork <= distToRest) WORK else REST
+            currentInput = if (distToWork < distToRest) WORK else REST   // < ensures that if they are same rest is chosen
             Log.d(LOG_TAG, "allocateTouchToTimer: touch within 2 widths of thumb for ${if (currentInput == 0) "work" else "rest"}")
             return
         }
@@ -345,6 +419,10 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         else if (minutesOnTouchDown <= timerWidgets[WORK].minutes) {        // not in range of rest, range of work is simple test
             currentInput = WORK
             Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of work")
+        }
+        else if (timerWidgets[REST].minutes == 0) {                         // over top of each other, choose rest
+            currentInput = REST
+            Log.d(LOG_TAG, "allocateTouchToTimer: choose rest cos one over the other")
         }
         else {                                                              // neither work nor rest range, so it's somewhere in the white space, just go for nearer
             currentInput = if (distToWork < distToRest) WORK else REST      // < ensures that if they are same rest is chosen, otherwise would always follow work and if rest is 0 it's impossible to set it
@@ -373,15 +451,15 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         paint.style = Paint.Style.FILL
         paint.isAntiAlias = true
         // shadow off to the bottom/right, but a little smaller than actual size or it'll be cut off
-        canvas.drawCircle(centreX + shadow, centreY + shadow * 2f, totalRadius - shadow * 4f, paint)
+        canvas.drawCircle(centrePoint.x + shadowWidth, centrePoint.y + shadowWidth * 2f, totalRadius - shadowWidth * 4f, paint)
 
         paint.color = backgroundColour
         // a little less than full width so the bezel is visible underneath
-        canvas.drawCircle(centreX, centreY, drawnPickerRadius, paint)
+        canvas.drawCircle(centrePoint.x, centrePoint.y, drawnPickerRadius, paint)
 
         // fill for divisions background
         paint.color = divisionsBackgroundColour
-        canvas.drawCircle(centreX, centreY, minutesRingOuterRadius, paint)
+        canvas.drawCircle(centrePoint.x, centrePoint.y, minutesRingOuterRadius, paint)
 
         // arc for minutes for each timer
 
@@ -391,7 +469,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
             // work should fill up the whole circle when 0      //Log.d(LOG_TAG, "onDraw: work=${currentInput == WORK} minutes=$minutes")
             if (index == WORK && timerWidgets[WORK].minutes == 0) {
-                canvas.drawCircle(centreX, centreY, minutesRingOuterRadius, paint)
+                canvas.drawCircle(centrePoint.x, centrePoint.y, minutesRingOuterRadius, paint)
             }
             else {
                 canvas.drawArc(
@@ -402,7 +480,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
                 )
             }
             paint.color = divisionsBackgroundColour
-            canvas.drawCircle(centreX, centreY, minutesRingInnerRadius, paint)
+            canvas.drawCircle(centrePoint.x, centrePoint.y, minutesRingInnerRadius, paint)
         }
 
         // overdraw inner circles
@@ -426,29 +504,47 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
                 paint.color = divisionsColour
                 paint.strokeWidth = divisionsStrokeWidth
 
-                canvas.drawLine(timerWidget.thumbFloats[THUMB_X], timerWidget.thumbFloats[THUMB_Y], timerWidget.thumbFloats[THUMB_POINT_TO_X], timerWidget.thumbFloats[THUMB_POINT_TO_Y], paint)
+                canvas.drawLine(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, timerWidget.thumbPointTo.x, timerWidget.thumbPointTo.y, paint)
 
                 // fill circle
 
                 paint.style = Paint.Style.FILL
                 paint.color = timerWidget.colour
 
-                canvas.drawCircle(timerWidget.thumbFloats[THUMB_X], timerWidget.thumbFloats[THUMB_Y], thumbSize / 2f, paint)
+                canvas.drawCircle(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, thumbSize / 2f, paint)
 
                 // outline
 
                 paint.strokeWidth = divisionsStrokeWidth * 3f
                 paint.style = Paint.Style.STROKE
                 paint.color = bezelColour
-                canvas.drawCircle(timerWidget.thumbFloats[THUMB_X], timerWidget.thumbFloats[THUMB_Y], thumbSize / 2f, paint)
+                canvas.drawCircle(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, thumbSize / 2f, paint)
+
+                // little shine on the thumbs gives a bit of 3D effect
+
+                paint.style = Paint.Style.FILL
+                paint.color = thumbShineColour
+                canvas.drawArc(
+                    timerWidget.thumbShowPos.x - thumbRadius,
+                    timerWidget.thumbShowPos.y - thumbRadius,
+                    timerWidget.thumbShowPos.x + thumbRadius,
+                    timerWidget.thumbShowPos.y + thumbRadius,
+                    180f, 180f, true, paint)
+
+                // for testing: if (tempOverlapPointTo.x != 0f) canvas.drawCircle(tempOverlapPointTo.x, tempOverlapPointTo.y, 3f, paint)
             }
         }
     }
 
-    fun setActiveTimerViewModel(activeTimerViewModel: ActiveTimerViewModel) {
-        activeTimerViewModel.timer.observe(activity!!, Observer {
+    /**
+     * Called either from the view model setter or onSizeChanged() depending
+     * which is called second. It seems the data binding happens 2nd only after
+     * orientation changes
+     */
+    private fun beginObservingViewModel() {
+        activeTimerViewModel!!.timer.observe(activity!!, Observer {
             timer ->
-            Log.w(LOG_TAG, "setActiveTimerViewModel: got a timer $timer")
+            Log.d(LOG_TAG, "beginObservingViewModel: got a timer $timer")
             timerWidgets[WORK].minutes = (timer.pomodoroDuration / 60 / 1000).toInt()
             timerWidgets[REST].minutes = (timer.restDuration / 60 / 1000).toInt()
         })
@@ -525,20 +621,28 @@ class TimePickerTextView : TimerStatefulTextView {
 
     private fun isWorkTextTimer() = this.id == R.id.work_time
 
+    /**
+     * See comments in layout activity_main.xml... width is not set correctly
+     * after orientation change until user interacts with the timers
+     * for that reason it's set to match_parent until some other better fix
+     */
     fun setTime(timeInMillis: Long) {
 
         // work timer should show as 60 in the case of user putting it back to 0, more natural that way
         val newText = if (timeInMillis == 0L && isWorkTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
-//        Log.d(LOG_TAG, "setTime: $newText")
+        //Log.d(LOG_TAG, "setTime: $newText viewW=${this.width}")
 
         text = if (boldTextBeginAtChar != -1 && newText.isNotEmpty()) {
-            val spannable = SpannableString(newText)
+            SpannableString(newText).apply {
 
-            if (boldTextBeginAtChar < newText.length) {
-                spannable.setSpan(boldTypefaceSpan, boldTextBeginAtChar, if (boldTextEndAtChar == -1) newText.length else min(boldTextEndAtChar, newText.length), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                if (boldTextBeginAtChar < newText.length) {
+                    setSpan(boldTypefaceSpan, boldTextBeginAtChar,
+                        if (boldTextEndAtChar == -1) newText.length
+                        else min(boldTextEndAtChar, newText.length),
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
             }
-
-            spannable
         }
         else {
             newText

@@ -15,11 +15,27 @@
         android:layout_height="match_parent"
         tools:context=".MainActivity">
 
+        <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/toolbarLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent"
+            android:theme="@style/AppTheme.AppBarOverlay">
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="?attr/colorPrimary"
+                app:popupTheme="@style/AppTheme.PopupOverlay"
+                />
+
+        </com.google.android.material.appbar.AppBarLayout>
+
         <ImageView
             android:id="@+id/time_picker_background"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:elevation="0dp"
+            android:elevation="7dp"
             app:layout_constraintDimensionRatio="1:1"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
@@ -60,11 +76,16 @@
             app:layout_constraintBottom_toBottomOf="@id/time_picker_background"
             />
 
+        <!-- seems strange to have these width match_parent, it's to get around a bug
+             after orientation change and the width is minimal even after setting
+             and calling invalidate(), there doesn't seem to be harm from match_parent
+             now, but in future try to reset to wrap_content and test orientation changes
+             work ok -->
         <com.stillwindsoftware.pomodorome.TimePickerTextView
             android:id="@+id/work_time"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/dialog_countdown_text_background"
+            android:gravity="center"
             app:supportPartBoldFontStyle="true"
             app:boldSpanBeginChar="0"
             app:boldSpanEndChar="2"
@@ -95,15 +116,15 @@
 
         <com.stillwindsoftware.pomodorome.TimePickerTextView
             android:id="@+id/rest_time"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:elevation="8dp"
             app:supportPartBoldFontStyle="true"
             app:boldSpanBeginChar="0"
             app:boldSpanEndChar="2"
             android:textSize="@dimen/timer_text_size"
             android:textColor="@color/timerText"
-            android:background="@drawable/dialog_countdown_text_background"
             android:fontFamily="sans-serif"
             android:textStyle="normal"
             android:maxLines="1"
