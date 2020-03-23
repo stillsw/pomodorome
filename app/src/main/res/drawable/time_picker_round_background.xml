@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <!-- this causes a shadow by being set to the background -->
+    <solid android:color="@android:color/white"/>
+
+</shape>

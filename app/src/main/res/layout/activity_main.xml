@@ -31,49 +31,36 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
-        <ImageView
-            android:id="@+id/time_picker_background"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:elevation="7dp"
-            app:layout_constraintDimensionRatio="1:1"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/duration"
-            app:srcCompat="@drawable/ic_timer_background"
-            android:layout_margin="@dimen/time_picker_margin"
-            />
-        <View
-            android:id="@+id/timer_divider"
-            android:layout_width="4dp"
-            android:layout_height="4dp"
-            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
-            app:layout_constraintRight_toRightOf="@id/time_picker_background"
-            app:layout_constraintTop_toTopOf="@id/time_picker_background"
-            app:layout_constraintBottom_toBottomOf="@id/time_picker_background"
-            />
-
         <com.stillwindsoftware.pomodorome.TimePickerCircle
             android:id="@+id/time_picker_circle"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:elevation="7dp"
+            android:elevation="@dimen/timer_elevation"
             android:clickable="true"
             android:focusable="true"
             app:activeTimerViewModel="@{viewmodel}"
             app:workColour="@color/timePickerWork"
             app:restColour="@color/timePickerRest"
             app:backgroundColour="@color/timePickerBackground"
-            app:shadowColour="@color/timePickerShadow"
             app:divisionsBackgroundColour="@color/timePickerDivisionsBackground"
             app:divisionsColour="@color/timePickerDivisions"
             app:bezelColour="@color/timePickerBezel"
             app:layout_constraintDimensionRatio="1:1"
-            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
-            app:layout_constraintRight_toRightOf="@id/time_picker_background"
-            app:layout_constraintTop_toTopOf="@id/time_picker_background"
-            app:layout_constraintBottom_toBottomOf="@id/time_picker_background"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/duration"
+            android:layout_margin="@dimen/time_picker_margin"
+            />
+
+        <View
+            android:id="@+id/timer_divider"
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_circle"
+            app:layout_constraintRight_toRightOf="@id/time_picker_circle"
+            app:layout_constraintTop_toTopOf="@id/time_picker_circle"
+            app:layout_constraintBottom_toBottomOf="@id/time_picker_circle"
             />
 
         <!-- seems strange to have these width match_parent, it's to get around a bug
@@ -89,7 +76,7 @@
             app:supportPartBoldFontStyle="true"
             app:boldSpanBeginChar="0"
             app:boldSpanEndChar="2"
-            android:elevation="8dp"
+            android:elevation="@dimen/timer_other_views_elevation"
             android:fontFamily="sans-serif"
             android:maxLines="1"
             android:padding="@dimen/timer_text_horizontal_margin"
@@ -97,8 +84,8 @@
             android:textSize="@dimen/timer_text_size"
             android:textStyle="normal"
             app:layout_constraintBottom_toTopOf="@id/timer_divider"
-            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
-            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_circle"
+            app:layout_constraintRight_toRightOf="@id/time_picker_circle"
             />
 
         <!--TextView
@@ -119,7 +106,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:elevation="8dp"
+            android:elevation="@dimen/timer_other_views_elevation"
             app:supportPartBoldFontStyle="true"
             app:boldSpanBeginChar="0"
             app:boldSpanEndChar="2"
@@ -130,8 +117,8 @@
             android:maxLines="1"
             android:padding="@dimen/timer_text_horizontal_margin"
             app:layout_constraintTop_toBottomOf="@id/timer_divider"
-            app:layout_constraintLeft_toLeftOf="@id/time_picker_background"
-            app:layout_constraintRight_toRightOf="@id/time_picker_background"
+            app:layout_constraintLeft_toLeftOf="@id/time_picker_circle"
+            app:layout_constraintRight_toRightOf="@id/time_picker_circle"
             />
 
         <!--TextView
@@ -155,7 +142,7 @@
             app:layout_constraintBottom_toTopOf="@id/rest_duration"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/time_picker_background" />
+            app:layout_constraintTop_toBottomOf="@+id/time_picker_circle" />
 
         <TextView
             android:id="@+id/rest_duration"

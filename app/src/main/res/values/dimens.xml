@@ -6,4 +6,6 @@
     <dimen name="timer_text_horizontal_margin">4dp</dimen>
     <dimen name="timer_text_size">28sp</dimen>
     <dimen name="timer_emoji_size">40dp</dimen>
+    <dimen name="timer_elevation">15dp</dimen>
+    <dimen name="timer_other_views_elevation">16dp</dimen>
 </resources>

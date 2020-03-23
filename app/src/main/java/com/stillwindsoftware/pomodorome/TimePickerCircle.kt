@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.*
+import android.graphics.Paint.ANTI_ALIAS_FLAG
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.InsetDrawable
 import android.os.Build
 import android.text.Spannable
 import android.text.SpannableString
@@ -55,7 +58,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         private const val FULL_CIRCLE = 360f
         private const val QUARTER_CIRCLE = 90f
         private const val TWELVE_O_CLOCK = 270f
-        private const val PADDED_WIDTH_PERCENT = .038f
+        private const val PADDED_WIDTH_PERCENT = .04f
         private const val RINGS_WIDTH_PERCENT = .055f
         private const val DIVISIONS_STROKE_WIDTH_PERCENT = .005f
         private const val DEGREES_PER_MINUTE = 6f
@@ -64,7 +67,6 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var activity: AppCompatActivity? = null
     private var backgroundColour = 0
     private var bezelColour = 0
-    private var shadowColour = 0
     private var thumbShineColour = 0
     private var divisionsColour = 0
     private var divisionsBackgroundColour = 0
@@ -90,7 +92,8 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private val minutesRingRect = RectF()
     private val innerCircleRect = RectF()
     private var centrePoint = PointF()
-    private lateinit var paint: Paint
+    private val paint: Paint = Paint(ANTI_ALIAS_FLAG)
+    private lateinit var clockBackgrd: Drawable
     // accessed from MainActivity
     internal val timerWidgets = arrayOf(TimerWidget(), TimerWidget())
 
@@ -271,7 +274,6 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             timerWidgets[WORK].colour = getColor(R.styleable.TimePickerCircle_workColour, resources.getColor(R.color.colorAccent, null))
             timerWidgets[REST].colour = getColor(R.styleable.TimePickerCircle_restColour, resources.getColor(R.color.colorAccent, null))
             backgroundColour = getColor(R.styleable.TimePickerCircle_backgroundColour, resources.getColor(android.R.color.white, null))
-            shadowColour = getColor(R.styleable.TimePickerCircle_shadowColour, backgroundColour)
             divisionsBackgroundColour = getColor(R.styleable.TimePickerCircle_divisionsBackgroundColour, backgroundColour)
             divisionsColour = getColor(R.styleable.TimePickerCircle_divisionsColour, resources.getColor(android.R.color.black, null))
             bezelColour = getColor(R.styleable.TimePickerCircle_bezelColour, resources.getColor(android.R.color.black, null))
@@ -279,8 +281,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             recycle()
         }
 
-        paint = Paint()
-
+        clockBackgrd = resources.getDrawable(R.drawable.ic_timer_background, null)
         setOnTouchListener(this)
     }
 
@@ -293,12 +294,17 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     override fun onSizeChanged(sizeWidth: Int, sizeHeight: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(sizeWidth, sizeHeight, oldw, oldh)
 
-        Log.d(LOG_TAG, "onSizeChanged:")
+        Log.d(LOG_TAG, "onSizeChanged: w=$sizeWidth h=$sizeHeight")
 
         val minSize = min(sizeWidth, sizeHeight).toFloat()
-        centrePoint.set(sizeWidth / 2f, sizeHeight / 2f)
 
+        clockBackgrd.setBounds(0, 0, sizeWidth, sizeHeight)
+        centrePoint.set(sizeWidth / 2f, sizeHeight / 2f)
         paddedWidth = minSize * PADDED_WIDTH_PERCENT
+
+        val insetWidth = paddedWidth * 1.53f // very exact to get shadow exactly flush with bezel
+        background = InsetDrawable(resources.getDrawable(R.drawable.time_picker_round_background, null), insetWidth.toInt())
+
         ringsWidth = minSize * RINGS_WIDTH_PERCENT
         thumbRadius = ringsWidth
         thumbSize = thumbRadius * 2f
@@ -446,13 +452,9 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     override fun onDraw(canvas: Canvas?) {
         canvas ?: return
 
-        // fill to complete background
-        paint.color = shadowColour
-        paint.style = Paint.Style.FILL
-        paint.isAntiAlias = true
-        // shadow off to the bottom/right, but a little smaller than actual size or it'll be cut off
-        canvas.drawCircle(centrePoint.x + shadowWidth, centrePoint.y + shadowWidth * 2f, totalRadius - shadowWidth * 4f, paint)
+        clockBackgrd.draw(canvas)
 
+        paint.style = Paint.Style.FILL
         paint.color = backgroundColour
         // a little less than full width so the bezel is visible underneath
         canvas.drawCircle(centrePoint.x, centrePoint.y, drawnPickerRadius, paint)

@@ -13,7 +13,6 @@
     <color name="timePickerThumb">@color/backgroundActive</color>
     <color name="timePickerThumbShine">#22eceff1</color>
     <color name="timePickerBackground">#145e90</color>
-    <color name="timePickerShadow">#22222222</color>
     <color name="timePickerDivisionsBackground">#eceff1</color>
     <color name="timePickerDivisions">@color/timePickerBackground</color>
 </resources>

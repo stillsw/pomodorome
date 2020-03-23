@@ -19,7 +19,6 @@
         <attr name="thumbColour" format="color" />
         <attr name="backgroundColour" format="color" />
         <attr name="divisionsColour" format="color" />
-        <attr name="shadowColour" format="color" />
         <attr name="divisionsBackgroundColour" format="color" />
         <attr name="bezelColour" format="color" />
     </declare-styleable>
