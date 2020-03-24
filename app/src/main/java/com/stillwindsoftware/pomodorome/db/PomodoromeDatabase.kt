@@ -12,13 +12,13 @@ import kotlinx.coroutines.launch
  */
 @Database(entities = [ActiveTimer::class], version = 1, exportSchema = false)
 @TypeConverters(Converters::class)
-public abstract class PomodoromeDatabase : RoomDatabase() {
+abstract class PomodoromeDatabase : RoomDatabase() {
 
     abstract fun activeTimerDao(): ActiveTimerDao
 
     companion object {
         const val LOG_TAG = "PomodoromeDatabase"
-        const val ONE_MINUTE = 60 * 1000L
+        const val ONE_MINUTE = 60L * 1000L
 
         // Singleton prevents multiple instances of database opening at the
         // same time.

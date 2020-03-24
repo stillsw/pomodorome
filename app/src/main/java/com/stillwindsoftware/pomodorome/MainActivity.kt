@@ -2,7 +2,7 @@ package com.stillwindsoftware.pomodorome
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
+import android.view.View
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
@@ -32,6 +32,29 @@ class MainActivity : AppCompatActivity() {
         time_picker_circle.timerWidgets[TimePickerCircle.WORK].timePickerTextView = work_time
         time_picker_circle.timerWidgets[TimePickerCircle.REST].timePickerTextView = rest_time
 
+    }
+
+    fun callbackChangeToTimer(acceptInput: Boolean) {
+        if (acceptInput) {
+            work_emoji.visibility = View.INVISIBLE
+            rest_emoji.visibility = View.INVISIBLE
+        }
+        else {
+            work_emoji.visibility = View.VISIBLE
+            rest_emoji.visibility = View.VISIBLE
+        }
+    }
+
+    fun playClicked(view: View) {
+        time_picker_circle.startTiming()
+    }
+
+    fun editTimers(view: View) {
+        time_picker_circle.editTimers()
+    }
+
+    fun restartTimers(view: View) {
+        //TODO
     }
 
 }

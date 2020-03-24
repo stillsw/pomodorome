@@ -2,7 +2,7 @@
 <resources>
     <color name="colorPrimary">#008577</color>
     <color name="colorPrimaryDark">#00574B</color>
-    <color name="colorAccent">#D81B60</color>
+    <color name="colorAccent">#f04d26</color>
     <color name="backgroundPaused">#99cad3</color>
     <color name="backgroundExpired">#f04d26</color>
     <color name="backgroundActive">#f57c9b</color>
@@ -10,7 +10,6 @@
     <color name="timePickerBezel">#0a3c5d</color>
     <color name="timePickerWork">#f68a61</color>
     <color name="timePickerRest">#408060</color>
-    <color name="timePickerThumb">@color/backgroundActive</color>
     <color name="timePickerThumbShine">#22eceff1</color>
     <color name="timePickerBackground">#145e90</color>
     <color name="timePickerDivisionsBackground">#eceff1</color>

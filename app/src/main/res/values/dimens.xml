@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="fab_size_large">70dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+    <dimen name="fab_margin_less">8dp</dimen>
     <dimen name="time_picker_margin">8dp</dimen>
     <dimen name="time_picker_circle_margin">26dp</dimen>
     <dimen name="time_picker_background_shadow">3dp</dimen>
     <dimen name="timer_text_horizontal_margin">4dp</dimen>
     <dimen name="timer_text_size">28sp</dimen>
-    <dimen name="timer_emoji_size">40dp</dimen>
+    <dimen name="timer_emoji_size">30dp</dimen>
     <dimen name="timer_elevation">15dp</dimen>
     <dimen name="timer_other_views_elevation">16dp</dimen>
 </resources>

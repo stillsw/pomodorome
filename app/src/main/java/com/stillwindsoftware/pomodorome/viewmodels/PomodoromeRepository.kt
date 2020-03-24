@@ -44,11 +44,11 @@ class PomodoromeRepository (private val activeTimerDao: ActiveTimerDao) {
                 .setReplaceAll(true)
                 .registerInitCallback(object: EmojiCompat.InitCallback() {
                     override fun onInitialized() {
-                        Log.d(PomodoromeRepository.LOG_TAG, "initEmojis: initialized")
+                        Log.d(LOG_TAG, "initEmojis: initialized")
                     }
 
                     override fun onFailed(throwable: Throwable?) {
-                        fontsRequested = false // let's it try again next time in to the activity
+                        fontsRequested = false // try again next time in to the activity
                         Log.e(LOG_TAG, "initEmojis: failed", throwable)
                     }
                 })

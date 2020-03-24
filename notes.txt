@@ -1,11 +1,8 @@
 stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before, was it only when plugged in, or another keyguard method?
     probably have to call request dismiss keyguard
     
-currently finishing edit part of the timers... drawing and placement of thumbs
-    try gradient shader for shadow
     
 next 
-    update viewmodel on changes
     do ticking down display 
         probably fill the extra background arc to show progress
     make a toolbar and other views

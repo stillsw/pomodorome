@@ -7,21 +7,19 @@ import android.graphics.*
 import android.graphics.Paint.ANTI_ALIAS_FLAG
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.InsetDrawable
-import android.os.Build
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.TextPaint
 import android.text.style.TypefaceSpan
 import android.util.AttributeSet
 import android.util.Log
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.lifecycle.Observer
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
+import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
 import com.stillwindsoftware.pomodorome.db.TimerStateType
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import java.lang.Math.toDegrees
@@ -64,7 +62,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         private const val DEGREES_PER_MINUTE = 6f
     }
 
-    private var activity: AppCompatActivity? = null
+    private var activity: MainActivity? = null
     private var backgroundColour = 0
     private var bezelColour = 0
     private var thumbShineColour = 0
@@ -102,7 +100,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     var activeTimerViewModel: ActiveTimerViewModel? = null
         set(value) {
             if (centrePoint.x != 0f) {
-                beginObservingViewModel()
+                trackViewModel()
             }
             field = value
         }
@@ -132,12 +130,17 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             calcSweepAngles(new)
             calcThumbDegrees(new, isWorkTime)
 
+            val prevMillis = timeInMillis
             timeInMillis = (new * 60L) * 1000L
-            //todo update view model if accept input is on AND millis is changed (view model will check that)
-            //todo or perhaps only with onTouch UP
+
             if (acceptInput) {
                 timePickerTextView?.setTime(timeInMillis)
                     ?: Log.w(LOG_TAG, "TimerWidget.minutes.observed: no time picker yet")
+
+                // update view model only if accept input is on AND millis is changed (view model will check that too)
+                if (prevMillis != timeInMillis) {
+                    activeTimerViewModel?.updateTime(timeInMillis, isWorkTime)
+                }
             }
 
             Log.v(LOG_TAG, "minutes.observed: value=$new drawnSweepAngle=$minutesDrawnSweepAngle for work=$isWorkTime")
@@ -347,7 +350,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         }
 
         // see function comment, only if already have a view model
-        activeTimerViewModel?.let {  beginObservingViewModel() }
+        activeTimerViewModel?.let {  trackViewModel() }
     }
 
     override fun onTouch(v: View?, event: MotionEvent?): Boolean {
@@ -543,25 +546,28 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
      * which is called second. It seems the data binding happens 2nd only after
      * orientation changes
      */
-    private fun beginObservingViewModel() {
+    private fun trackViewModel() {
         activeTimerViewModel!!.timer.observe(activity!!, Observer {
             timer ->
-            Log.d(LOG_TAG, "beginObservingViewModel: got a timer $timer")
-            timerWidgets[WORK].minutes = (timer.pomodoroDuration / 60 / 1000).toInt()
-            timerWidgets[REST].minutes = (timer.restDuration / 60 / 1000).toInt()
+            Log.d(LOG_TAG, "trackViewModel: got a timer $timer")
+            timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
+            timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
+
+            acceptInput = !timer.isActive()
+            activity?.callbackChangeToTimer(acceptInput)
         })
     }
 
     /**
      * Need the activity to set up the observer, it's a bit messy but works
      */
-    private fun getActivity(): AppCompatActivity? {
+    private fun getActivity(): MainActivity? {
 
         if (activity != null) return activity
 
         var localContext = context
         while (localContext is ContextWrapper) {
-            if (localContext is AppCompatActivity) {
+            if (localContext is MainActivity) {
                 activity = localContext
                 break
             }
@@ -571,6 +577,16 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         return activity
     }
 
+    /**
+     * Activity calls this when play button is pressed
+     */
+    fun startTiming() {
+        activeTimerViewModel?.start()
+    }
+
+    fun editTimers() {
+        activeTimerViewModel?.stopIfActive()
+    }
 }
 
 

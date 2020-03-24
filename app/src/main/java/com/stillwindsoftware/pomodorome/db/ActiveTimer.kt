@@ -1,5 +1,6 @@
 package com.stillwindsoftware.pomodorome.db
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.room.*
 
@@ -42,19 +43,38 @@ data class ActiveTimer(
         timerState = TimerStateType.STOPPED
     }
 
-    fun getMillisToGo(now: Long): Long {
-        return pomodoroDuration - when (timerState) {
-            TimerStateType.ACTIVE -> now - startTime - previousPausesAccumulated
-            TimerStateType.PAUSED -> pauseAtTime - startTime - previousPausesAccumulated
-            else -> // stopped
-                0L
+    fun getMillisTillNextEvent(now: Long): Long {
+
+        return when (timerState) {
+            TimerStateType.ACTIVE -> {
+                val totalMillis = startTime - previousPausesAccumulated - now
+                val elapsedTiming = totalMillis % (pomodoroDuration + restDuration)
+                Log.d(LOG_TAG, "getMillisTillNextEvent: totalMillis=$totalMillis elapsedTime=$elapsedTiming")
+                if (elapsedTiming < pomodoroDuration) {
+                    pomodoroDuration - elapsedTiming
+                } else {
+                    pomodoroDuration + restDuration - elapsedTiming
+                }
+            }
+            else -> Long.MAX_VALUE
         }
+
+//        return pomodoroDuration - when (timerState) {
+//            TimerStateType.ACTIVE -> now - startTime - previousPausesAccumulated
+//            TimerStateType.PAUSED -> pauseAtTime - startTime - previousPausesAccumulated
+//            else -> // stopped
+//                0L
+//        }
     }
 
     fun isActive(): Boolean = timerState == TimerStateType.ACTIVE
     fun isPaused(): Boolean = timerState == TimerStateType.PAUSED
     fun isStopped(): Boolean = timerState == TimerStateType.STOPPED
     fun isPausedOrStopped(): Boolean = timerState == TimerStateType.PAUSED || timerState == TimerStateType.STOPPED
+
+    companion object {
+        private const val LOG_TAG = "ActiveTimer"
+    }
 }
 
 @Dao
