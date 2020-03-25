@@ -4,7 +4,7 @@ stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before
     
 next 
     do ticking down display 
-        probably fill the extra background arc to show progress
+        not sure about colour of elapsed time arc
     make a toolbar and other views
     do notifications/alarms
     settings for everything    
