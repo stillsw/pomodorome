@@ -16,7 +16,7 @@
     <declare-styleable name="TimePickerCircle">
         <attr name="workColour" format="color" />
         <attr name="restColour" format="color" />
-        <attr name="thumbColour" format="color" />
+        <attr name="elapsingColour" format="color" />
         <attr name="backgroundColour" format="color" />
         <attr name="divisionsColour" format="color" />
         <attr name="divisionsBackgroundColour" format="color" />

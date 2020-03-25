@@ -47,24 +47,24 @@ data class ActiveTimer(
 
         return when (timerState) {
             TimerStateType.ACTIVE -> {
-                val totalMillis = startTime - previousPausesAccumulated - now
-                val elapsedTiming = totalMillis % (pomodoroDuration + restDuration)
-                Log.d(LOG_TAG, "getMillisTillNextEvent: totalMillis=$totalMillis elapsedTime=$elapsedTiming")
-                if (elapsedTiming < pomodoroDuration) {
-                    pomodoroDuration - elapsedTiming
-                } else {
-                    pomodoroDuration + restDuration - elapsedTiming
+                getElapsedMillis(now).also { elapsedTiming ->
+                    if (elapsedTiming < pomodoroDuration) {
+                        pomodoroDuration - elapsedTiming
+                    } else {
+                        pomodoroDuration + restDuration - elapsedTiming
+                    }
                 }
             }
             else -> Long.MAX_VALUE
         }
+    }
 
-//        return pomodoroDuration - when (timerState) {
-//            TimerStateType.ACTIVE -> now - startTime - previousPausesAccumulated
-//            TimerStateType.PAUSED -> pauseAtTime - startTime - previousPausesAccumulated
-//            else -> // stopped
-//                0L
-//        }
+    fun getElapsedMillis(now: Long): Long {
+        with(now - startTime - previousPausesAccumulated) {       // this = total elapsed since start
+            return (this % (pomodoroDuration + restDuration)).also {     // it = elapsed in this timing
+                Log.v(LOG_TAG, "getElapsedMillis: totalMillis=$this elapsedTime=$it")
+            }
+        }
     }
 
     fun isActive(): Boolean = timerState == TimerStateType.ACTIVE

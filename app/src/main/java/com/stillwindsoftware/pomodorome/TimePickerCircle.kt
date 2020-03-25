@@ -18,6 +18,8 @@ import android.view.View
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.lifecycle.Observer
+import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.TICK_OVER
+import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.ticksSinceBlink
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
 import com.stillwindsoftware.pomodorome.db.TimerStateType
@@ -60,6 +62,8 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         private const val RINGS_WIDTH_PERCENT = .055f
         private const val DIVISIONS_STROKE_WIDTH_PERCENT = .005f
         private const val DEGREES_PER_MINUTE = 6f
+        internal const val TICK_OVER = 1000 / MainActivity.TIMER_DELAY / 2
+        internal var ticksSinceBlink = 0L
     }
 
     private var activity: MainActivity? = null
@@ -68,6 +72,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var thumbShineColour = 0
     private var divisionsColour = 0
     private var divisionsBackgroundColour = 0
+    private var timeElapsingColour = 0
     private var ringsWidth = 1f
     private var divisionsStrokeWidth = 1f
     private var shadowWidth = 0f
@@ -87,7 +92,10 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var acceptInput = true
     private var motionEventsPointer = -1
     private var minutesOnTouchDown = -1
-    private val minutesRingRect = RectF()
+    private var minutesElapsedWhenTicking = 0L
+    private var minutesElapsedDrawnSweepAngle = -1f
+    private val minutesOuterRingRect = RectF()
+    private val minutesInnerRingRect = RectF()
     private val innerCircleRect = RectF()
     private var centrePoint = PointF()
     private val paint: Paint = Paint(ANTI_ALIAS_FLAG)
@@ -281,6 +289,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             divisionsColour = getColor(R.styleable.TimePickerCircle_divisionsColour, resources.getColor(android.R.color.black, null))
             bezelColour = getColor(R.styleable.TimePickerCircle_bezelColour, resources.getColor(android.R.color.black, null))
             thumbShineColour = resources.getColor(R.color.timePickerThumbShine, null)
+            timeElapsingColour = getColor(R.styleable.TimePickerCircle_elapsingColour, backgroundColour)
             recycle()
         }
 
@@ -328,11 +337,15 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         // formula for len of an arc = (degrees / 360) * circumference
         thumbOverlapDegreesShift = thumbSize / 1.8f * FULL_CIRCLE / thumbRingCircumference
 
-        // need a rect to be able to draw the arc for minutes
-        val minutesRectOffset = totalRadius - minutesRingOuterRadius
-        minutesRingRect.set(minutesRectOffset, minutesRectOffset, sizeWidth - minutesRectOffset, sizeHeight - minutesRectOffset)
-        val innerCircleOffset = minutesRectOffset + ringsWidth * 1.5f
-        innerCircleRect.set(innerCircleOffset, innerCircleOffset, sizeWidth - innerCircleOffset, sizeHeight - innerCircleOffset)
+        // need a rect to be able to draw the arc for minutes and another for the elapsing minutes
+        with(totalRadius - minutesRingOuterRadius) {
+            minutesOuterRingRect.set(this, this, sizeWidth - this, sizeHeight - this)
+            val innerCircleOffset = this + ringsWidth * 1.5f
+            innerCircleRect.set(innerCircleOffset, innerCircleOffset, sizeWidth - innerCircleOffset, sizeHeight - innerCircleOffset)
+        }
+        with(totalRadius - minutesRingInnerRadius) {
+            minutesInnerRingRect.set(this, this, sizeWidth - this, sizeHeight - this)
+        }
 
         // setup the points for the minutes/hours drawn lines
         var i = 0
@@ -478,7 +491,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             }
             else {
                 canvas.drawArc(
-                    minutesRingRect,
+                    minutesOuterRingRect,
                     timeSetting.minutesDrawnSweepAngleStart,
                     timeSetting.minutesDrawnSweepAngle,
                     true, paint
@@ -487,6 +500,13 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             paint.color = divisionsBackgroundColour
             canvas.drawCircle(centrePoint.x, centrePoint.y, minutesRingInnerRadius, paint)
         }
+
+        // when ticking show an arc of elapsed minutes
+        if (!acceptInput && minutesElapsedWhenTicking > 0L) {
+            paint.color = timeElapsingColour
+            canvas.drawArc(minutesInnerRingRect, TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
+        }
+
 
         // overdraw inner circles
         paint.color = timerWidgets[WORK].colour
@@ -550,11 +570,16 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         activeTimerViewModel!!.timer.observe(activity!!, Observer {
             timer ->
             Log.d(LOG_TAG, "trackViewModel: got a timer $timer")
+            acceptInput = !timer.isActive()
+
             timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
             timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
 
-            acceptInput = !timer.isActive()
             activity?.callbackChangeToTimer(acceptInput)
+
+            if (!acceptInput) {
+                ticksSinceBlink = 0 // start blinking
+            }
         })
     }
 
@@ -584,8 +609,48 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         activeTimerViewModel?.start()
     }
 
+    /**
+     * Activity calls this when edit button is pressed
+     */
     fun editTimers() {
         activeTimerViewModel?.stopIfActive()
+    }
+
+    /**
+     * Activity calls this when a tick event happens
+     * Get the times left on each timer and update their texts
+     * If a minute advances, that's shown on the clock too
+     */
+    fun doTick() {
+        if (acceptInput) {     // ignore if edit is allowed
+            Log.d(LOG_TAG, "doTick: should not be called while editing")
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        var totalElapsed = 0L
+
+        for ((index, timeSetting) in timerWidgets.withIndex()) {
+            (activeTimerViewModel!!.getElapsedMillis(index == WORK, now)).also {
+                    elapsedMillis ->
+                    timeSetting.timePickerTextView?.setTime(elapsedMillis, ticking = true)
+                    totalElapsed += elapsedMillis
+                }
+        }
+
+        // cause a redraw if the number of minutes has changed
+        with(totalElapsed / ONE_MINUTE) {
+            if (this != minutesElapsedWhenTicking) {
+                minutesElapsedWhenTicking = this
+                minutesElapsedDrawnSweepAngle = this / MINUTES * FULL_CIRCLE
+                Log.d(LOG_TAG, "doTick: tick over the next minute ($this, angle=$minutesElapsedDrawnSweepAngle)")
+                invalidate()
+            }
+        }
+
+        if (ticksSinceBlink++ >= TICK_OVER * 2) {   // blink, next time
+            ticksSinceBlink = 0
+        }
     }
 }
 
@@ -611,30 +676,27 @@ class TimePickerTextView : TimerStatefulTextView {
     private var boldTypefaceSpan: CustomTypefaceSpan? = null
     private var boldTextBeginAtChar = -1
     private var boldTextEndAtChar = -1
-    private var defColour = -1
-    private var tickColour = resources.getColor(android.R.color.transparent, null)
+
+    // when tracking the time the text is stored, when it changes tickIsOn toggles for the ticking colon effect
+    private var lastText = ""
 
     private fun init(attrs: AttributeSet) {
-        val typedArray = context.obtainStyledAttributes(attrs, R.styleable.TimePickerTextView, 0, 0)
-        isMixedTypeface = typedArray.getBoolean(R.styleable.TimePickerTextView_supportPartBoldFontStyle, false)
-        boldTextBeginAtChar = typedArray.getInteger(R.styleable.TimePickerTextView_boldSpanBeginChar, -1)
-        boldTextEndAtChar = typedArray.getInteger(R.styleable.TimePickerTextView_boldSpanEndChar, -1)
-        typedArray.recycle()
-
-        if (isMixedTypeface) {
-            val defTypedArray = context.obtainStyledAttributes(attrs, intArrayOf(android.R.attr.fontFamily))
-            val fontFamily = defTypedArray.getString(0) ?: "sans-serif"
-            defTypedArray.recycle()
-
-            Log.d(LOG_TAG, "init: isMixedTypeFace font family=$fontFamily (text=$text)")
-
-            boldTypefaceSpan = CustomTypefaceSpan(fontFamily, Typeface.create(fontFamily, Typeface.BOLD))
+        with(context.obtainStyledAttributes(attrs, R.styleable.TimePickerTextView, 0, 0)) {
+            isMixedTypeface = getBoolean(R.styleable.TimePickerTextView_supportPartBoldFontStyle,false)
+            boldTextBeginAtChar = getInteger(R.styleable.TimePickerTextView_boldSpanBeginChar, -1)
+            boldTextEndAtChar = getInteger(R.styleable.TimePickerTextView_boldSpanEndChar, -1)
+            recycle()
         }
 
-        // store the default colour of the text
-        val defTypedArray = context.obtainStyledAttributes(attrs, intArrayOf(android.R.attr.textColor))
-        defColour = defTypedArray.getColor(0, -1)
-        defTypedArray.recycle()
+        if (isMixedTypeface) {
+            with(context.obtainStyledAttributes(attrs, intArrayOf(android.R.attr.fontFamily))) {
+                val fontFamily = getString(0) ?: "sans-serif"
+                recycle()
+
+                Log.v(LOG_TAG, "init: isMixedTypeFace font family=$fontFamily (text=$text)")
+                boldTypefaceSpan = CustomTypefaceSpan(fontFamily, Typeface.create(fontFamily, Typeface.BOLD))
+            }
+        }
     }
 
     private fun isWorkTextTimer() = this.id == R.id.work_time
@@ -643,33 +705,50 @@ class TimePickerTextView : TimerStatefulTextView {
      * See comments in layout activity_main.xml... width is not set correctly
      * after orientation change until user interacts with the timers
      * for that reason it's set to match_parent until some other better fix
+     * By default the text does not show a tick, and when it is ticking
+     * it only does show if it hasn't finished
      */
-    fun setTime(timeInMillis: Long) {
+    fun setTime(timeInMillis: Long, ticking: Boolean = false) {
 
         // work timer should show as 60 in the case of user putting it back to 0, more natural that way
-        val newText = if (timeInMillis == 0L && isWorkTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
-        //Log.d(LOG_TAG, "setTime: $newText viewW=${this.width}")
+        var newText = if (timeInMillis == 0L && isWorkTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
 
-        text = if (boldTextBeginAtChar != -1 && newText.isNotEmpty()) {
-            SpannableString(newText).apply {
+        // to manage the on/off ticking effect with the colon in the middle detect change in the seconds
+        // and alternate
 
-                if (boldTextBeginAtChar < newText.length) {
-                    setSpan(boldTypefaceSpan, boldTextBeginAtChar,
-                        if (boldTextEndAtChar == -1) newText.length
-                        else min(boldTextEndAtChar, newText.length),
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                }
+        if (ticking) {
+
+            // tick over is every half a second (colon blinks)
+
+            if (newText != lastText) {              // always blink when the text changes
+                lastText = newText
+                ticksSinceBlink = 0
+            }
+
+            if (ticksSinceBlink < TICK_OVER) {
+                newText = newText.replace(':', ' ')
             }
         }
-        else {
-            newText
-        }
-    }
 
-    fun setTick(on: Boolean) {
-        if ((on && currentTextColor == defColour) || (!on && currentTextColor == tickColour))
-            setTextColor(if (on) tickColour else defColour)
+        // minutes part is bold only set if changed
+
+        if (newText != text) {
+            text = if (boldTextBeginAtChar != -1 && newText.isNotEmpty()) {
+                SpannableString(newText).apply {
+
+                    if (boldTextBeginAtChar < newText.length) {
+                        setSpan(
+                            boldTypefaceSpan, boldTextBeginAtChar,
+                            if (boldTextEndAtChar == -1) newText.length
+                            else min(boldTextEndAtChar, newText.length),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+                }
+            } else {
+                newText
+            }
+        }
     }
 }
 

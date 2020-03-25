@@ -82,4 +82,31 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         }
 
     }
+
+    /**
+     * Called when ticking the timers, returns how many millis left for
+     * the timer in question
+     */
+    fun getElapsedMillis(isForWork: Boolean, now: Long): Long {
+        timer.value!!.also {
+            with(it.getElapsedMillis(now)) {
+                return if (isForWork) {                     // work time
+                    if (this < it.pomodoroDuration) {       // elapsed if under pomodoro duration
+                        this
+                    }
+                    else {                                  // otherwise the total
+                        it.pomodoroDuration
+                    }
+                }
+                else {                                      // rest time
+                    if (this <= it.pomodoroDuration) {      // 0 if haven't completed pomodoro yet
+                        0L
+                    }
+                    else {
+                        this - it.pomodoroDuration          // otherwise total less the pomodoro
+                    }
+                }
+            }
+        }
+    }
 }

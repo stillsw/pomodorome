@@ -41,6 +41,7 @@
             app:activeTimerViewModel="@{viewmodel}"
             app:workColour="@color/timePickerWork"
             app:restColour="@color/timePickerRest"
+            app:elapsingColour="@color/timeElapsing"
             app:backgroundColour="@color/timePickerBackground"
             app:divisionsBackgroundColour="@color/timePickerDivisionsBackground"
             app:divisionsColour="@color/timePickerDivisions"
