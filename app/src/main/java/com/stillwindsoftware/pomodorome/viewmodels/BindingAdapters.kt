@@ -9,5 +9,5 @@ import androidx.databinding.BindingAdapter
  */
 @BindingAdapter("app:hideIfZero")
 fun hideIfZero(view: View, number: Long) {
-    view.visibility = if (number == 0L) View.GONE else View.VISIBLE
+    view.visibility = if (number == 0L) View.INVISIBLE else View.VISIBLE
 }

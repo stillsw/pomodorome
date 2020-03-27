@@ -494,8 +494,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
                     minutesOuterRingRect,
                     timeSetting.minutesDrawnSweepAngleStart,
                     timeSetting.minutesDrawnSweepAngle,
-                    true, paint
-                )
+                    true, paint)
             }
             paint.color = divisionsBackgroundColour
             canvas.drawCircle(centrePoint.x, centrePoint.y, minutesRingInnerRadius, paint)
@@ -503,8 +502,20 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
         // when ticking show an arc of elapsed minutes
         if (!acceptInput && minutesElapsedWhenTicking > 0L) {
-            paint.color = timeElapsingColour
+            //paint.color = timeElapsingColour
+
+            // try with the same colours as the timers
+            paint.color = timerWidgets[WORK].colour
             canvas.drawArc(minutesInnerRingRect, TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
+
+            if (minutesElapsedDrawnSweepAngle > timerWidgets[WORK].minutesDrawnSweepAngle) {
+                paint.color = timerWidgets[REST].colour
+                canvas.drawArc(
+                    minutesOuterRingRect,
+                    timerWidgets[REST].minutesDrawnSweepAngleStart,
+                    minutesElapsedDrawnSweepAngle - timerWidgets[WORK].minutesDrawnSweepAngle,
+                    true, paint)
+            }
         }
 
 
@@ -570,12 +581,12 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         activeTimerViewModel!!.timer.observe(activity!!, Observer {
             timer ->
             Log.d(LOG_TAG, "trackViewModel: got a timer $timer")
-            acceptInput = !timer.isActive()
+            acceptInput = timer.isStopped()
 
             timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
             timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
 
-            activity?.callbackChangeToTimer(acceptInput)
+            activity?.callbackChangeToTimer(acceptInput, paused = timer.isPaused())
 
             if (!acceptInput) {
                 ticksSinceBlink = 0 // start blinking
@@ -605,9 +616,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     /**
      * Activity calls this when play button is pressed
      */
-    fun startTiming() {
-        activeTimerViewModel?.start()
-    }
+    fun toggleRunTiming() = activeTimerViewModel?.toggleStartPause()
 
     /**
      * Activity calls this when edit button is pressed

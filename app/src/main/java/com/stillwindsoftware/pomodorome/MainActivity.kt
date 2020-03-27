@@ -1,18 +1,21 @@
 package com.stillwindsoftware.pomodorome
 
+import android.graphics.drawable.AnimationDrawable
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import com.stillwindsoftware.pomodorome.viewmodels.PomodoromeRepository
 import kotlinx.android.synthetic.main.activity_main.*
 
 /**
- *
+ * Thanks to Alex Lockwood for his excellent shape shifter path morphing tool which I used
+ * to create the animated vector drawables (https://beta.shapeshifter.design/)
  */
 class MainActivity : AppCompatActivity() {
 
@@ -21,11 +24,15 @@ class MainActivity : AppCompatActivity() {
         const val TIMER_DELAY = 100L        // ticking interval, not too long otherwise seconds might not change quick enough
     }
 
+    // the animated vector drawables cached in onCreate() then assigned in callbackChangeToTimer
+
+    private lateinit var playToPauseDrawable: AnimatedVectorDrawableCompat
+    private lateinit var pauseToPlayDrawable: AnimatedVectorDrawableCompat
+
     // timer ticking is controlled by a runnable posted delayed every 1/3 second
     // it's started from the callback from the TimePickerCircle view which is
     // observing the View Model
 
-    private var tick = 0                                // for ticking
     private var isTimingBeingTrackedViews = false           // false when timers being modified
     private var isTimerTrackingRunnablePosted = false   // make sure only posted once
     private val timerTrackingRunnable = Runnable {
@@ -35,7 +42,6 @@ class MainActivity : AppCompatActivity() {
             updateTrackingOnTimedViews(true)
         }
     }
-
 
     private val viewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
 
@@ -52,9 +58,11 @@ class MainActivity : AppCompatActivity() {
         time_picker_circle.timerWidgets[TimePickerCircle.WORK].timePickerTextView = work_time
         time_picker_circle.timerWidgets[TimePickerCircle.REST].timePickerTextView = rest_time
 
+        playToPauseDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.play_to_pause_avd)!!
+        pauseToPlayDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.pause_to_play_avd)!!
     }
 
-    fun callbackChangeToTimer(acceptInput: Boolean) {
+    fun callbackChangeToTimer(acceptInput: Boolean, paused: Boolean) {
         if (acceptInput) {
             work_emoji.visibility = View.INVISIBLE
             rest_emoji.visibility = View.INVISIBLE
@@ -62,8 +70,10 @@ class MainActivity : AppCompatActivity() {
         else {
             work_emoji.visibility = View.VISIBLE
             rest_emoji.visibility = View.VISIBLE
+
         }
 
+        play_button.setImageDrawable(if (acceptInput || paused) { pauseToPlayDrawable } else { playToPauseDrawable })
         updateTrackingOnTimedViews(!acceptInput)
     }
 
@@ -107,8 +117,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Only reacts if there's a timer, which there will always be, but wrapped in let
+     * for extra safety anyway
+     */
     fun playClicked(view: View) {
-        time_picker_circle.startTiming()
+        time_picker_circle.toggleRunTiming()?.let {isStarted ->
+            (if (isStarted) playToPauseDrawable else pauseToPlayDrawable).start()
+        }
     }
 
     fun editTimers(view: View) {

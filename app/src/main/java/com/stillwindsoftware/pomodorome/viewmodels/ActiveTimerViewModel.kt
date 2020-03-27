@@ -56,17 +56,30 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun start() {
-        timer.value!!.also {
-            it.start()
-            val nextEvent = it.getMillisTillNextEvent(System.currentTimeMillis())
-            Log.d(LOG_TAG, "start: next event in ${nextEvent / ONE_MINUTE} mins and ${nextEvent % ONE_MINUTE} secs")
+    fun toggleStartPause(): Boolean {
+        var isStart = true
 
+        timer.value!!.also {
+            if (it.isActive()) {
+                it.pause()
+
+                // todo cancel alarm
+
+                isStart = false
+            }
+            else {
+                it.start()
+                val nextEvent = it.getMillisTillNextEvent(System.currentTimeMillis())
+                Log.d(LOG_TAG, "start: next event in ${nextEvent / ONE_MINUTE} mins and ${nextEvent % ONE_MINUTE} secs")
+
+                //todo create alarm
+
+            }
             update(it)
 
-            //todo create alarm
         }
 
+        return isStart
     }
 
     fun stopIfActive() {
