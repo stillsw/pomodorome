@@ -26,27 +26,35 @@ data class ActiveTimer(
 
     fun start() {
         val now = System.currentTimeMillis()
-        if (timerState == TimerStateType.PAUSED) {
+        if (isPaused()) {
             previousPausesAccumulated += now - pauseAtTime
             pauseAtTime = 0L
         }
-        else if (timerState == TimerStateType.STOPPED) {
+        else if (!isPlaying()) {
             startTime = now
         }
 
-        timerState = TimerStateType.ACTIVE
+        timerState = TimerStateType.PLAYING
     }
 
     fun stop() {
+        startTime = 0L
         pauseAtTime = 0L
         previousPausesAccumulated = 0L
         timerState = TimerStateType.STOPPED
     }
 
+    fun edit() {
+        startTime = 0L
+        pauseAtTime = 0L
+        previousPausesAccumulated = 0L
+        timerState = TimerStateType.EDITED
+    }
+
     fun getMillisTillNextEvent(now: Long): Long {
 
         return when (timerState) {
-            TimerStateType.ACTIVE -> {
+            TimerStateType.PLAYING -> {
                 getElapsedMillis(now).also { elapsedTiming ->
                     if (elapsedTiming < pomodoroDuration) {
                         pomodoroDuration - elapsedTiming
@@ -68,10 +76,11 @@ data class ActiveTimer(
         }
     }
 
-    fun isActive(): Boolean = timerState == TimerStateType.ACTIVE
-    fun isPaused(): Boolean = timerState == TimerStateType.PAUSED
-    fun isStopped(): Boolean = timerState == TimerStateType.STOPPED
-    fun isPausedOrStopped(): Boolean = timerState == TimerStateType.PAUSED || timerState == TimerStateType.STOPPED
+    fun isPlaying() = timerState == TimerStateType.PLAYING
+    fun isPaused() = timerState == TimerStateType.PAUSED
+    fun isStopped() = timerState == TimerStateType.STOPPED
+    fun isEdited() = timerState == TimerStateType.EDITED
+    fun isTrackingTiming() = isPlaying() || isPaused()
 
     companion object {
         private const val LOG_TAG = "ActiveTimer"

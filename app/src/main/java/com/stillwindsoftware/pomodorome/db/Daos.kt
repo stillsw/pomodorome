@@ -20,9 +20,10 @@ interface BaseDao<T> {
 }
 
 enum class TimerStateType(val styledAttributeName: IntArray) {
-    ACTIVE(intArrayOf(R.attr.timerActive)),
+    PLAYING(intArrayOf(R.attr.timerPlaying)),
     PAUSED(intArrayOf(R.attr.timerPaused)),
-    STOPPED(intArrayOf(R.attr.timerPaused))
+    STOPPED(intArrayOf(R.attr.timerPaused)),
+    EDITED(intArrayOf(R.attr.timerEdited))
 }
 
 class Converters {

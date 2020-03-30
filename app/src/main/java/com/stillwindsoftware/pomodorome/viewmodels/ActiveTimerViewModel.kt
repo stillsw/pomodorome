@@ -47,12 +47,12 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         if (isWorkTime && timeInMillis != activeTimer.pomodoroDuration) {
             activeTimer.pomodoroDuration = timeInMillis
             update(activeTimer)
-            Log.d(LOG_TAG, "updateTime: pomodoro duration updated")
+            Log.v(LOG_TAG, "updateTime: pomodoro duration updated")
         }
         else if (!isWorkTime && timeInMillis != activeTimer.restDuration) {
             activeTimer.restDuration = timeInMillis
             update(activeTimer)
-            Log.d(LOG_TAG, "updateTime: rest duration updated")
+            Log.v(LOG_TAG, "updateTime: rest duration updated")
         }
     }
 
@@ -60,10 +60,10 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         var isStart = true
 
         timer.value!!.also {
-            if (it.isActive()) {
+            if (it.isPlaying()) {
                 it.pause()
 
-                // todo cancel alarm
+                // todo cancel alarm - NO, do the alarm processing in repo.update()
 
                 isStart = false
             }
@@ -82,19 +82,33 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         return isStart
     }
 
-    fun stopIfActive() {
+    fun stop() {
         timer.value!!.also {
-            if (it.isActive()) {
+            if (!it.isStopped()) {
                 it.stop()
-                Log.d(LOG_TAG, "stopIfActive: toggled to stop")
+                Log.d(LOG_TAG, "stop: ")
 
                 update(it)
 
                 //todo cancel alarms
             }
         }
-
     }
+
+    fun edit() {
+        timer.value!!.also {
+            if (!it.isEdited()) {
+                it.edit()
+                Log.d(LOG_TAG, "edit: update")
+
+                update(it)
+
+                //todo cancel alarms
+            }
+        }
+    }
+
+    fun getActiveTimer() = timer.value!!
 
     /**
      * Called when ticking the timers, returns how many millis left for

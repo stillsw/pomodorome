@@ -2,9 +2,10 @@
 <resources>
     <!-- ActiveTimer states  -->
     <declare-styleable name="TimerStatefulViews">
-        <attr name="timerActive" format="boolean" />
+        <attr name="timerPlaying" format="boolean" />
         <attr name="timerPaused" format="boolean" />
         <attr name="timerStopped" format="boolean" />
+        <attr name="timerEdited" format="boolean" />
     </declare-styleable>
 
     <declare-styleable name="TimePickerTextView">

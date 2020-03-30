@@ -20,9 +20,7 @@ import androidx.appcompat.widget.AppCompatTextView
 import androidx.lifecycle.Observer
 import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.TICK_OVER
 import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.ticksSinceBlink
-import com.stillwindsoftware.pomodorome.db.ActiveTimer
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
-import com.stillwindsoftware.pomodorome.db.TimerStateType
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import java.lang.Math.toDegrees
 import java.lang.Math.toRadians
@@ -89,10 +87,11 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var hoursRingInnerRadius = 0f
     private var thumbRingRadius = 0f
     private var thumbRingCircumference = 0f
-    private var thumbOverlapDegreesShift = 0f     // the amount to shift thumbs on their ring around the circle when overlapping
-    private val divisionsPoints = FloatArray(240) // drawn points for lines at the minutes
+    private var thumbOverlapDegreesShift = 0f           // the amount to shift thumbs on their ring around the circle when overlapping
+    private val divisionsPoints = FloatArray(240)  // drawn points for lines at the minutes
     private var currentInput = WORK
-    private var isEditing = true
+    private var isEditing = false                       // cache the timer state so drawing has a bit less overhead
+    private var isRunning = false
     private var isTransitionEditing = false             // darken colours in the middle while in transition
     private var transitionStartAt = -1L                 // to determine how far it's gone
     private var motionEventsPointer = -1
@@ -100,7 +99,6 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var minutesElapsedWhenTicking = 0L
     private var minutesElapsedDrawnSweepAngle = -1f
     private val minutesOuterRingRect = RectF()
-    private val minutesInnerRingRect = RectF()
     private val innerCircleRect = RectF()
     private var centrePoint = PointF()
     private val paint: Paint = Paint(ANTI_ALIAS_FLAG)
@@ -148,7 +146,8 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             val prevMillis = timeInMillis
             timeInMillis = (new * 60L) * 1000L
 
-            if (isEditing) {
+            if (!isRunning) { // either editing or stopped, so display the times
+
                 timePickerTextView?.setTime(timeInMillis)
                     ?: Log.w(LOG_TAG, "TimerWidget.minutes.observed: no time picker yet")
 
@@ -343,7 +342,11 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         minutesRingInnerRadius = minutesRingOuterRadius - ringsWidth
         hoursRingInnerRadius = minutesRingInnerRadius - ringsWidth / 2f
 
-        thumbRingRadius = hoursRingInnerRadius - thumbSize / 1.5f           // the ring where the thumb is placed around the clock
+        // the ring where the thumb is placed around the clock
+        // it's inside the inner circle by the amount of a thumb's radius plus half the stroke
+        // width drawn around it plus the distance to the inner circle where the colours are drawn
+
+        thumbRingRadius = hoursRingInnerRadius - thumbRadius - divisionsStrokeWidth * 1.5f - ringsWidth / 3f
         thumbRingCircumference = (2f * PI * thumbRingRadius).toFloat()
 
         // for shifting the thumbs when they overlap will need the degrees difference
@@ -351,14 +354,12 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         // formula for len of an arc = (degrees / 360) * circumference
         thumbOverlapDegreesShift = thumbSize / 1.8f * FULL_CIRCLE / thumbRingCircumference
 
-        // need a rect to be able to draw the arc for minutes and another for the elapsing minutes
+        // rect to draw the arc for minutes (full and elapsing)
         with(totalRadius - minutesRingOuterRadius) {
             minutesOuterRingRect.set(this, this, sizeWidth - this, sizeHeight - this)
-            val innerCircleOffset = this + ringsWidth * 1.5f
-            innerCircleRect.set(innerCircleOffset, innerCircleOffset, sizeWidth - innerCircleOffset, sizeHeight - innerCircleOffset)
         }
-        with(totalRadius - minutesRingInnerRadius) {
-            minutesInnerRingRect.set(this, this, sizeWidth - this, sizeHeight - this)
+        with(totalRadius - hoursRingInnerRadius + ringsWidth / 3f) {
+            innerCircleRect.set(this, this, sizeWidth - this, sizeHeight - this)
         }
 
         // setup the points for the minutes/hours drawn lines
@@ -515,12 +516,14 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         }
 
         // when ticking show an arc of elapsed minutes
-        if (!isEditing && minutesElapsedWhenTicking > 0L) {
-            //paint.color = timeElapsingColour
 
-            // try with the same colours as the timers
+        if (isRunning && minutesElapsedWhenTicking > 0L) {
+
+            // same colours as the timers, note always within the outer coloured arcs
+            // so use the same rects
+
             paint.color = timerWidgets[WORK].colour
-            canvas.drawArc(minutesInnerRingRect, TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
+            canvas.drawArc(minutesOuterRingRect, TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
 
             if (minutesElapsedDrawnSweepAngle > timerWidgets[WORK].minutesDrawnSweepAngle) {
                 paint.color = timerWidgets[REST].colour
@@ -532,6 +535,9 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             }
         }
 
+        // fill for background ring around centre colours
+        paint.color = divisionsBackgroundColour
+        canvas.drawCircle(centrePoint.x, centrePoint.y, hoursRingInnerRadius, paint)
 
         // overdraw inner circles, shift if in transition, (when editing it's supposed to be darkened)
 
@@ -560,7 +566,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         val centreColours = when {
             isTransitionEditing -> Color.HSVToColor(timerWidgets[WORK].transitionColour) to Color.HSVToColor(timerWidgets[REST].transitionColour)
             isEditing -> timerWidgets[WORK].darkenedColor to timerWidgets[REST].darkenedColor
-            else -> timerWidgets[WORK].colour to  timerWidgets[REST].colour
+            else -> timerWidgets[WORK].colour to timerWidgets[REST].colour
         }
 
         paint.color = centreColours.first
@@ -621,9 +627,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             else {
                 this[2] -= (EDIT_STATE_DARKENED_RATIO - darkFactor)
             }
-        })) /*.also {
-            Log.d(LOG_TAG, "transitionColour: darkness factor = $darkFactor new colour=${Integer.toHexString(it)}")
-        } */
+        }))
     }
 
     /**
@@ -634,23 +638,31 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private fun trackViewModel() {
         activeTimerViewModel!!.timer.observe(activity!!, Observer {
             timer ->
-            isEditing = timer.isStopped()
+            if (timer != null) {                    // first run on install, this runs before the initial data exists
+                isEditing = timer.isEdited()
+                isRunning = timer.isTrackingTiming()
 
-            timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
-            timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
+                timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
+                timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
 
-            Log.d(LOG_TAG, "trackViewModel: got a timer $timer callback to activity with editing=$isEditing paused=${timer.isPaused()}")
-            activity?.callbackChangeToTimer(isEditing, paused = timer.isPaused())
+                Log.d(
+                    LOG_TAG,
+                    "trackViewModel: got a timer $timer callback to activity with editing=$isEditing paused=${timer.isPaused()}"
+                )
+                activity?.callbackChangeToTimer(timer)
 
-            // test for transition to edit state, which means the colour of the middle
-            // circle is darkening over time, otherwise can just set it immediately to the
-            // max setting, note that because it's not transitional, onDraw() will
-            // just pick it up from the array
+                // test for transition to edit state, which means the colour of the middle
+                // circle is darkening over time, otherwise can just set it immediately to the
+                // max setting, note that because it's not transitional, onDraw() will
+                // just pick it up from the array
 
-            if (!isEditing) {
-                ticksSinceBlink = 0 // start blinking
+                if (!isEditing) {
+                    ticksSinceBlink = 0 // start blinking
+                }
             }
-
+            else {
+                Log.w(LOG_TAG, "trackViewModel: timer is null, presume first run from install")
+            }
         })
     }
 
@@ -674,27 +686,29 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     }
 
     /**
-     * Activity calls this when play button is pressed
+     * Activity calls this when play/pause or stop button is pressed
      * Starts the transition of background in centre of the circle out of the darkened colours
      * only when already in edit mode
      */
-    fun toggleRunTiming(): Boolean? {
+    fun transitionOutOfEditing(): Boolean {
         if (isEditing) {
             isTransitionEditing = true
             transitionStartAt = System.currentTimeMillis()
+            return true
         }
 
-        return (activeTimerViewModel?.toggleStartPause())
+        return false
     }
 
     /**
-     * Activity calls this when edit button is pressed
+     * Activity calls this when edit/stop button is pressed
      * Starts the transition of background in centre of the circle into the darkened colours
      */
     fun editTimers() {
-        isTransitionEditing = true
-        transitionStartAt = System.currentTimeMillis()
-        activeTimerViewModel?.stopIfActive()
+        if (!isEditing) {
+            isTransitionEditing = true
+            transitionStartAt = System.currentTimeMillis()
+        }
     }
 
     /**
@@ -708,7 +722,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             return
         }
 
-        val isPaused = activeTimerViewModel!!.timer.value!!.isPaused()
+        val isPaused = activeTimerViewModel!!.getActiveTimer().isPaused()
         val now = System.currentTimeMillis()
         var totalElapsed = 0L
 
@@ -737,7 +751,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 }
 
 
-class TimePickerTextView : TimerStatefulTextView {
+class TimePickerTextView : AppCompatTextView {
     constructor(context: Context) : super(context)
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
@@ -795,8 +809,7 @@ class TimePickerTextView : TimerStatefulTextView {
         // work timer should show as 60 in the case of user putting it back to 0, more natural that way
         var newText = if (timeInMillis == 0L && isWorkTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
 
-        // to manage the on/off ticking effect with the colon in the middle detect change in the seconds
-        // and alternate
+        // to manage the on/off ticking effect with the colon in the middle detect change in the seconds and alternate
 
         if (ticking) {
 
@@ -831,45 +844,6 @@ class TimePickerTextView : TimerStatefulTextView {
                 newText
             }
         }
-    }
-}
-
-open class TimerStatefulTextView : AppCompatTextView {
-    constructor(context: Context) : super(context)
-
-    constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
-
-    constructor(context: Context, attrs: AttributeSet, defStyleAttr: Int) : super(context, attrs, defStyleAttr)
-
-    companion object {
-        @Suppress("unused")
-        const val LOG_TAG = "TimerStateText"
-    }
-
-    private var timerStateType: TimerStateType? = null
-
-    override fun onCreateDrawableState(extraSpace: Int): IntArray {
-
-        return if (timerStateType != null) {
-            val state = super.onCreateDrawableState(extraSpace + 1)
-            View.mergeDrawableStates(state, timerStateType?.styledAttributeName)
-            state
-        }
-        else {
-            super.onCreateDrawableState(extraSpace)
-        }
-    }
-
-    fun testActiveTimerStates(activeTimer: ActiveTimer?) {
-        if (timerStateType != activeTimer?.timerState) {
-            timerStateType = activeTimer?.timerState
-            refreshDrawableState()
-        }
-    }
-
-    fun clearActiveTimerStates() {
-        timerStateType = null
-        refreshDrawableState()
     }
 }
 

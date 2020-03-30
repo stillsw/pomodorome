@@ -8,41 +8,24 @@
             android:height="24dp"
             android:viewportWidth="24"
             android:viewportHeight="24">
-            <group
-                android:name="group"
-                android:pivotX="12"
-                android:pivotY="12"
-                android:rotation="-90">
-                <path
-                    android:name="eraser"
-                    android:pathData="M 20.653 12.01 L 20.653 3.487 L 3.442 3.487 L 3.442 20.534 L 20.653 20.534 L 20.653 12.01"
-                    android:fillColor="#ffffff"
-                    android:strokeColor="#ffffff"
-                    android:strokeWidth="1"
-                    android:strokeLineCap="round"
-                    android:strokeLineJoin="round"/>
-                <path
-                    android:name="pencil"
-                    android:pathData="M 18.012 5.646 C 17.898 5.532 17.741 5.462 17.567 5.462 C 17.219 5.462 16.937 5.744 16.937 6.092 C 16.937 6.092 16.937 6.092 16.937 6.092 C 16.937 6.44 17.219 6.722 17.567 6.722 C 17.915 6.722 18.197 6.44 18.197 6.092 C 18.197 6.005 18.179 5.922 18.148 5.847 C 18.116 5.771 18.07 5.704 18.012 5.646"
-                    android:fillColor="#ffffff"
-                    android:strokeColor="#ffffff"
-                    android:strokeWidth="1"
-                    android:strokeLineCap="round"
-                    android:strokeLineJoin="round"/>
-            </group>
+            <path
+                android:name="eraser"
+                android:pathData="M 20.653 12.01 L 20.653 3.487 L 3.442 3.487 L 3.442 20.534 L 20.653 20.534 L 20.653 12.01"
+                android:fillColor="#ffffff"
+                android:strokeColor="#ffffff"
+                android:strokeWidth="1"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"/>
+            <path
+                android:name="pencil"
+                android:pathData="M 18.012 5.646 C 17.898 5.532 17.741 5.462 17.567 5.462 C 17.219 5.462 16.937 5.744 16.937 6.092 C 16.937 6.092 16.937 6.092 16.937 6.092 C 16.937 6.44 17.219 6.722 17.567 6.722 C 17.915 6.722 18.197 6.44 18.197 6.092 C 18.197 6.005 18.179 5.922 18.148 5.847 C 18.116 5.771 18.07 5.704 18.012 5.646"
+                android:fillColor="#ffffff"
+                android:strokeColor="#ffffff"
+                android:strokeWidth="1"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"/>
         </vector>
     </aapt:attr>
-    <target android:name="group">
-        <aapt:attr name="android:animation">
-            <objectAnimator
-                android:propertyName="rotation"
-                android:duration="300"
-                android:valueFrom="0"
-                android:valueTo="0"
-                android:valueType="floatType"
-                android:interpolator="@android:interpolator/fast_out_slow_in"/>
-        </aapt:attr>
-    </target>
     <target android:name="pencil">
         <aapt:attr name="android:animation">
             <objectAnimator

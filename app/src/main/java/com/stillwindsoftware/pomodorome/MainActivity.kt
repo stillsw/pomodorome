@@ -1,14 +1,18 @@
 package com.stillwindsoftware.pomodorome
 
+import android.graphics.drawable.BitmapDrawable
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
+import com.stillwindsoftware.pomodorome.db.ActiveTimer
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import com.stillwindsoftware.pomodorome.viewmodels.PomodoromeRepository
 import kotlinx.android.synthetic.main.activity_main.*
@@ -20,6 +24,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     companion object {
+        @Suppress("unused")
         private const val LOG_TAG = "MainActivity"
         const val TIMER_DELAY = 100L        // ticking interval, not too long otherwise seconds might not change quick enough
     }
@@ -66,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         stopToPencilDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.stop_to_pencil_avd)!!
     }
 
-    fun callbackChangeToTimer(isEditing: Boolean, paused: Boolean) {
+    fun callbackChangeToTimer(activeTimer: ActiveTimer) {
 //        if (acceptInput) {
 //            work_emoji.visibility = View.INVISIBLE
 //            rest_emoji.visibility = View.INVISIBLE
@@ -78,19 +83,13 @@ class MainActivity : AppCompatActivity() {
 //        }
 
         // change of state, ticking the timers turns on or off
-        updateTrackingOnTimedViews(!isEditing)
+        updateTrackingOnTimedViews(activeTimer.isTrackingTiming())
 
-        // when first start up the play button has no drawable
+        // when first start up the animated vector buttons have no drawable assigned
         if (play_button.drawable == null) {
-            play_button.setImageDrawable(if (isEditing || paused) {
-                Log.d(LOG_TAG, "callbackChangeToTimer: editing=$isEditing paused=$paused} set play to pause")
-                playToPauseDrawable
-            }
-            else {
-                Log.d(LOG_TAG, "callbackChangeToTimer: both false set pause to play")
-                pauseToPlayDrawable
-            })
-            edit_button.setImageDrawable(if (!isEditing) pencilToStopDrawable else stopToPencilDrawable)
+//todo bug, not sure why stop to pencil is sometimes wrong image            val stopBitmap = BitmapDrawable(resources, stopToPencilDrawable.toBitmap())
+            play_button.setImageDrawable(if (activeTimer.isPlaying()) pauseToPlayDrawable else playToPauseDrawable)
+            edit_button.setImageDrawable(if (activeTimer.isStopped()) pencilToStopDrawable else stopToPencilDrawable)
         }
     }
 
@@ -138,20 +137,43 @@ class MainActivity : AppCompatActivity() {
      * Only reacts if there's a timer, which there will always be, but wrapped in let
      * for extra safety anyway
      */
-    fun playClicked(@Suppress("UNUSED_PARAMETER") view: View) {
-        time_picker_circle.toggleRunTiming()?.let {isStarted ->
+    fun playPausePressed(@Suppress("UNUSED_PARAMETER") view: View) {
+
+        // currently in editing needs to transition out
+        time_picker_circle.transitionOutOfEditing()
+
+        // not the current state might mean the editStop button needs to change
+        if (viewModel.getActiveTimer().isStopped()) {
+            edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
+        }
+
+        viewModel.toggleStartPause().also { isStarted ->
             play_button.setImageDrawable((if (isStarted) playToPauseDrawable else pauseToPlayDrawable).also {
                 it.start()
             })
         }
+
     }
 
-    fun editTimers(@Suppress("UNUSED_PARAMETER") view: View) {
-        time_picker_circle.editTimers()
-        // todo refactor timer states to include edit
-        edit_button.setImageDrawable((if (!viewModel.timer.value!!.isStopped()) stopToPencilDrawable else pencilToStopDrawable).also {
-            it.start()
-        })
+    fun editStopPressed(@Suppress("UNUSED_PARAMETER") view: View) {
+
+        // choose edit... only allowed to edit from stopped
+        if (viewModel.getActiveTimer().isStopped()) {
+            time_picker_circle.editTimers()             // start transition
+            edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
+            viewModel.edit()
+        }
+        else { // choice is to stop whatever is happening
+            time_picker_circle.transitionOutOfEditing()   // does nothing if not editing
+            edit_button.setImageDrawable(stopToPencilDrawable.also { it.start() })
+
+            // playing means the current button is showing pause icon, change to play
+            if (viewModel.getActiveTimer().isPlaying()) {
+                play_button.setImageDrawable(pauseToPlayDrawable.also { it.start() })
+            }
+
+            viewModel.stop()
+        }
     }
 
 

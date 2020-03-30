@@ -1,25 +1,19 @@
 stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before, was it only when plugged in, or another keyguard method?
     probably have to call request dismiss keyguard
     
-
-bug 
-    starts paused, but button shows pause not play
-        there's an issue that the callback fires before the animation completed on the button, 
-        animating when pressed works except still wrong icon when it's paused and starts up, shows pause
-            also if hit edit button the drawable for play button needs to change to start
-    
+bugs
+     
 next 
-    shift colours as move from edit to non-edit
+    filling the arc of time elapsed, still needs something a bit nicer...
+        also how about some kind of path morphing for ticking?
 
     make sure on tablet, the times are not too small in the middle
         
     make a toolbar and other views
     do notifications/alarms
     settings for everything    
-    animate the buttons (and icons?)
-        top arrow coords
-            M 35 10 L 35 52 L 14 52 L 35 10
-        bottom
-            M 35 10 L 56 52 L 35 52 L 35 10
     
+    if move away from using emojis, remove all dependencies etc
+    
+    launcher icon
 
