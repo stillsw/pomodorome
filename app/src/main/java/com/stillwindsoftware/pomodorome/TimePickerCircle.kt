@@ -52,9 +52,9 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
     companion object {
         private const val LOG_TAG = "TimePickerCircle"
-        private const val MINUTES = 60f
         const val WORK = 0
         const val REST = 1
+        private const val MINUTES = 60f
         private const val FULL_CIRCLE = 360f
         private const val QUARTER_CIRCLE = 90f
         private const val TWELVE_O_CLOCK = 270f
@@ -63,13 +63,16 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         private const val DIVISIONS_STROKE_WIDTH_PERCENT = .005f
         private const val DEGREES_PER_MINUTE = 6f
         internal const val TICK_OVER = 1000 / MainActivity.TIMER_DELAY / 2
+        private const val EDIT_STATE_TRANSITION_MILLIS = 300f   // how long to take to transition
+        private const val EDIT_STATE_DARKENED_RATIO = .1f       // the reduction in luminescence for fully darkened colours
+
         internal var ticksSinceBlink = 0L
     }
 
     private var activity: MainActivity? = null
     private var backgroundColour = 0
     private var bezelColour = 0
-    private var thumbShineColour = 0
+    private var thumbColour = 0
     private var divisionsColour = 0
     private var divisionsBackgroundColour = 0
     private var timeElapsingColour = 0
@@ -89,7 +92,9 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private var thumbOverlapDegreesShift = 0f     // the amount to shift thumbs on their ring around the circle when overlapping
     private val divisionsPoints = FloatArray(240) // drawn points for lines at the minutes
     private var currentInput = WORK
-    private var acceptInput = true
+    private var isEditing = true
+    private var isTransitionEditing = false             // darken colours in the middle while in transition
+    private var transitionStartAt = -1L                 // to determine how far it's gone
     private var motionEventsPointer = -1
     private var minutesOnTouchDown = -1
     private var minutesElapsedWhenTicking = 0L
@@ -126,6 +131,8 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         var minutesDrawnSweepAngle = -1f
         var minutesDrawnSweepAngleStart = TWELVE_O_CLOCK // only rest resets this
         var colour = 0
+        var darkenedColor = 0
+        var transitionColour = FloatArray(3)    // see transitionColour()
         var timePickerTextView: TimePickerTextView? = null
         val thumbPointTo = PointF()     // where on the clock face the degrees points to
         val thumbPos = PointF()         // where the thumb is calculated to be, free of interference
@@ -141,7 +148,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             val prevMillis = timeInMillis
             timeInMillis = (new * 60L) * 1000L
 
-            if (acceptInput) {
+            if (isEditing) {
                 timePickerTextView?.setTime(timeInMillis)
                     ?: Log.w(LOG_TAG, "TimerWidget.minutes.observed: no time picker yet")
 
@@ -288,10 +295,16 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
             divisionsBackgroundColour = getColor(R.styleable.TimePickerCircle_divisionsBackgroundColour, backgroundColour)
             divisionsColour = getColor(R.styleable.TimePickerCircle_divisionsColour, resources.getColor(android.R.color.black, null))
             bezelColour = getColor(R.styleable.TimePickerCircle_bezelColour, resources.getColor(android.R.color.black, null))
-            thumbShineColour = resources.getColor(R.color.timePickerThumbShine, null)
             timeElapsingColour = getColor(R.styleable.TimePickerCircle_elapsingColour, backgroundColour)
             recycle()
         }
+
+        thumbColour = resources.getColor(R.color.colorAccent, null)
+        timerWidgets[WORK].darkenedColor = transitionColour(timerWidgets[WORK], EDIT_STATE_DARKENED_RATIO, darken = true)
+        timerWidgets[REST].darkenedColor = transitionColour(timerWidgets[REST], EDIT_STATE_DARKENED_RATIO, darken = true)
+
+        Log.v(LOG_TAG, "init: colours work=${Integer.toHexString(timerWidgets[WORK].colour)} darkened=${Integer.toHexString(timerWidgets[WORK].darkenedColor)}" +
+                " rest=${Integer.toHexString(timerWidgets[REST].colour)} darkened=${Integer.toHexString(timerWidgets[REST].darkenedColor)}")
 
         clockBackgrd = resources.getDrawable(R.drawable.ic_timer_background, null)
         setOnTouchListener(this)
@@ -317,8 +330,9 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         val insetWidth = paddedWidth * 1.53f // very exact to get shadow exactly flush with bezel
         background = InsetDrawable(resources.getDrawable(R.drawable.time_picker_round_background, null), insetWidth.toInt())
 
+        // thumb radius no bigger than a large fab
         ringsWidth = minSize * RINGS_WIDTH_PERCENT
-        thumbRadius = ringsWidth
+        thumbRadius = min(ringsWidth, resources.getDimension(R.dimen.time_picker_max_thumb_radius))
         thumbSize = thumbRadius * 2f
         divisionsStrokeWidth = max(minSize * DIVISIONS_STROKE_WIDTH_PERCENT, 1f)
 
@@ -368,7 +382,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
     override fun onTouch(v: View?, event: MotionEvent?): Boolean {
 
-        if (event == null || !acceptInput) return false
+        if (event == null || !isEditing) return false
 
         if (event.action == MotionEvent.ACTION_DOWN) {
             motionEventsPointer = event.getPointerId(0)
@@ -501,7 +515,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         }
 
         // when ticking show an arc of elapsed minutes
-        if (!acceptInput && minutesElapsedWhenTicking > 0L) {
+        if (!isEditing && minutesElapsedWhenTicking > 0L) {
             //paint.color = timeElapsingColour
 
             // try with the same colours as the timers
@@ -519,57 +533,97 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         }
 
 
-        // overdraw inner circles
-        paint.color = timerWidgets[WORK].colour
+        // overdraw inner circles, shift if in transition, (when editing it's supposed to be darkened)
+
+        var transitionDelta = 1f // default to complete, thumbs use this too
+
+        if (isTransitionEditing) {
+            val elapsed = System.currentTimeMillis() - transitionStartAt
+            if (elapsed > EDIT_STATE_TRANSITION_MILLIS) {
+                isTransitionEditing = false
+            }
+            else {
+                transitionDelta = elapsed / EDIT_STATE_TRANSITION_MILLIS
+                with(EDIT_STATE_DARKENED_RATIO * transitionDelta) {
+                    transitionColour(timerWidgets[WORK], this, darken = isEditing)
+                    transitionColour(timerWidgets[REST], this, darken = isEditing)
+                }
+
+                // make sure it gets drawn again until no longer animating the change
+                invalidate()
+            }
+        }
+
+        // either use the colour just calculated in transition
+        // or one of the cached colours (normal or darkened)
+
+        val centreColours = when {
+            isTransitionEditing -> Color.HSVToColor(timerWidgets[WORK].transitionColour) to Color.HSVToColor(timerWidgets[REST].transitionColour)
+            isEditing -> timerWidgets[WORK].darkenedColor to timerWidgets[REST].darkenedColor
+            else -> timerWidgets[WORK].colour to  timerWidgets[REST].colour
+        }
+
+        paint.color = centreColours.first
         canvas.drawArc(innerCircleRect, 180f, 180f, true, paint)
-        paint.color = timerWidgets[REST].colour
+        paint.color = centreColours.second
         canvas.drawArc(innerCircleRect, 0f, 180f, true, paint)
 
         // divisions
+
         paint.color = divisionsColour
         paint.strokeWidth = divisionsStrokeWidth
         canvas.drawLines(divisionsPoints, paint)
 
-        // thumbs for each timer
+        // thumbs for each timer has to be either in edit or animating between states
 
-        if (acceptInput) {
+        if (isEditing || isTransitionEditing) {
             for (timerWidget in timerWidgets) {
 
                 // a line from the thumb to where the end of the time setting is (for when the thumb can't be right on it)
 
-                paint.color = divisionsColour
-                paint.strokeWidth = divisionsStrokeWidth
-
-                canvas.drawLine(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, timerWidget.thumbPointTo.x, timerWidget.thumbPointTo.y, paint)
+                if (!isTransitionEditing) {
+                    paint.color = divisionsColour
+                    paint.strokeWidth = divisionsStrokeWidth
+                    canvas.drawLine(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, timerWidget.thumbPointTo.x, timerWidget.thumbPointTo.y, paint)
+                }
 
                 // fill circle
 
-                paint.style = Paint.Style.FILL
-                paint.color = timerWidget.colour
+                with (thumbRadius * if (isTransitionEditing && !isEditing) 1 - transitionDelta else transitionDelta) {
+                    paint.style = Paint.Style.FILL
+                    paint.color = timerWidget.colour
 
-                canvas.drawCircle(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, thumbSize / 2f, paint)
+                    canvas.drawCircle(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y,this, paint)
 
-                // outline
+                    // outline
 
-                paint.strokeWidth = divisionsStrokeWidth * 3f
-                paint.style = Paint.Style.STROKE
-                paint.color = bezelColour
-                canvas.drawCircle(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, thumbSize / 2f, paint)
-
-                // little shine on the thumbs gives a bit of 3D effect
-
-                paint.style = Paint.Style.FILL
-                paint.color = thumbShineColour
-                canvas.drawArc(
-                    timerWidget.thumbShowPos.x - thumbRadius,
-                    timerWidget.thumbShowPos.y - thumbRadius,
-                    timerWidget.thumbShowPos.x + thumbRadius,
-                    timerWidget.thumbShowPos.y + thumbRadius,
-                    180f, 180f, true, paint)
+                    paint.strokeWidth = divisionsStrokeWidth * 3f
+                    paint.style = Paint.Style.STROKE
+                    paint.color = divisionsBackgroundColour
+                    canvas.drawCircle(timerWidget.thumbShowPos.x, timerWidget.thumbShowPos.y, this, paint)
+                }
 
                 // for testing: if (tempOverlapPointTo.x != 0f) canvas.drawCircle(tempOverlapPointTo.x, tempOverlapPointTo.y, 3f, paint)
             }
         }
+    }
+
+    /**
+     * Takes the colour of the timer passed in and transforms its darkness by the factor
+     */
+    private fun transitionColour(timerWidget: TimerWidget, darkFactor: Float, darken: Boolean): Int {
+
+        return (Color.HSVToColor(timerWidget.transitionColour.apply {
+            Color.colorToHSV(timerWidget.colour, this)
+            if (darken) {
+                this[2] -= darkFactor
+            }
+            else {
+                this[2] -= (EDIT_STATE_DARKENED_RATIO - darkFactor)
+            }
+        })) /*.also {
+            Log.d(LOG_TAG, "transitionColour: darkness factor = $darkFactor new colour=${Integer.toHexString(it)}")
+        } */
     }
 
     /**
@@ -580,17 +634,23 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     private fun trackViewModel() {
         activeTimerViewModel!!.timer.observe(activity!!, Observer {
             timer ->
-            Log.d(LOG_TAG, "trackViewModel: got a timer $timer")
-            acceptInput = timer.isStopped()
+            isEditing = timer.isStopped()
 
             timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
             timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
 
-            activity?.callbackChangeToTimer(acceptInput, paused = timer.isPaused())
+            Log.d(LOG_TAG, "trackViewModel: got a timer $timer callback to activity with editing=$isEditing paused=${timer.isPaused()}")
+            activity?.callbackChangeToTimer(isEditing, paused = timer.isPaused())
 
-            if (!acceptInput) {
+            // test for transition to edit state, which means the colour of the middle
+            // circle is darkening over time, otherwise can just set it immediately to the
+            // max setting, note that because it's not transitional, onDraw() will
+            // just pick it up from the array
+
+            if (!isEditing) {
                 ticksSinceBlink = 0 // start blinking
             }
+
         })
     }
 
@@ -615,13 +675,25 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
     /**
      * Activity calls this when play button is pressed
+     * Starts the transition of background in centre of the circle out of the darkened colours
+     * only when already in edit mode
      */
-    fun toggleRunTiming() = activeTimerViewModel?.toggleStartPause()
+    fun toggleRunTiming(): Boolean? {
+        if (isEditing) {
+            isTransitionEditing = true
+            transitionStartAt = System.currentTimeMillis()
+        }
+
+        return (activeTimerViewModel?.toggleStartPause())
+    }
 
     /**
      * Activity calls this when edit button is pressed
+     * Starts the transition of background in centre of the circle into the darkened colours
      */
     fun editTimers() {
+        isTransitionEditing = true
+        transitionStartAt = System.currentTimeMillis()
         activeTimerViewModel?.stopIfActive()
     }
 
@@ -631,18 +703,19 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
      * If a minute advances, that's shown on the clock too
      */
     fun doTick() {
-        if (acceptInput) {     // ignore if edit is allowed
+        if (isEditing) {     // ignore if edit is allowed
             Log.d(LOG_TAG, "doTick: should not be called while editing")
             return
         }
 
+        val isPaused = activeTimerViewModel!!.timer.value!!.isPaused()
         val now = System.currentTimeMillis()
         var totalElapsed = 0L
 
         for ((index, timeSetting) in timerWidgets.withIndex()) {
             (activeTimerViewModel!!.getElapsedMillis(index == WORK, now)).also {
                     elapsedMillis ->
-                    timeSetting.timePickerTextView?.setTime(elapsedMillis, ticking = true)
+                    timeSetting.timePickerTextView?.setTime(elapsedMillis, ticking = true, isPaused = isPaused)
                     totalElapsed += elapsedMillis
                 }
         }
@@ -717,7 +790,7 @@ class TimePickerTextView : TimerStatefulTextView {
      * By default the text does not show a tick, and when it is ticking
      * it only does show if it hasn't finished
      */
-    fun setTime(timeInMillis: Long, ticking: Boolean = false) {
+    fun setTime(timeInMillis: Long, ticking: Boolean = false, isPaused: Boolean = false) {
 
         // work timer should show as 60 in the case of user putting it back to 0, more natural that way
         var newText = if (timeInMillis == 0L && isWorkTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
@@ -734,8 +807,8 @@ class TimePickerTextView : TimerStatefulTextView {
                 ticksSinceBlink = 0
             }
 
-            if (ticksSinceBlink < TICK_OVER) {
-                newText = newText.replace(':', ' ')
+            if (ticksSinceBlink < TICK_OVER) {      // whole time blinks while paused
+                newText = if (isPaused) "      " else newText.replace(':', ' ')
             }
         }
 

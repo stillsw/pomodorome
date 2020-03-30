@@ -7,6 +7,7 @@
     <dimen name="time_picker_margin">8dp</dimen>
     <dimen name="time_picker_circle_margin">26dp</dimen>
     <dimen name="time_picker_background_shadow">3dp</dimen>
+    <dimen name="time_picker_max_thumb_radius">30dp</dimen>
     <dimen name="timer_text_horizontal_margin">4dp</dimen>
     <dimen name="timer_text_size">28sp</dimen>
     <dimen name="timer_emoji_size">30dp</dimen>

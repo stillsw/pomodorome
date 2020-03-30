@@ -10,7 +10,6 @@
     <color name="timePickerWork">#f68a61</color>
     <color name="timePickerRest">#408060</color>
     <color name="timeElapsing">#f57c9b</color>
-    <color name="timePickerThumbShine">#22eceff1</color>
     <color name="timePickerBackground">#145e90</color>
     <color name="timePickerDivisionsBackground">#eceff1</color>
     <color name="timePickerDivisions">@color/timePickerBackground</color>

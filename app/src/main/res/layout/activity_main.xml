@@ -105,7 +105,7 @@
             app:layout_constraintRight_toRightOf="@id/time_picker_circle"
             />
 
-        <androidx.emoji.widget.EmojiAppCompatTextView
+        <!--androidx.emoji.widget.EmojiAppCompatTextView
             android:id="@+id/work_emoji"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -133,7 +133,7 @@
             app:layout_constraintTop_toBottomOf="@id/rest_time"
             app:layout_constraintLeft_toLeftOf="@id/time_picker_circle"
             app:layout_constraintRight_toRightOf="@id/time_picker_circle"
-            tools:text="@string/rest_prompt" />
+            tools:text="@string/rest_prompt" /-->
 
         <TextView
             android:id="@+id/paused_accum"
@@ -192,7 +192,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:fabSize="mini"
-            app:srcCompat="@drawable/ic_edit_pencil"
             android:onClick="editTimers"
             app:layout_constraintStart_toEndOf="@id/play_button"
             app:layout_constraintEnd_toEndOf="parent"
@@ -200,18 +199,6 @@
             app:layout_constraintBottom_toBottomOf="@id/play_button"
             />
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/restart_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:fabSize="mini"
-            app:srcCompat="@drawable/ic_restore"
-            android:onClick="restartTimers"
-            app:layout_constraintEnd_toStartOf="@id/play_button"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/play_button"
-            app:layout_constraintBottom_toBottomOf="@id/play_button"
-            />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

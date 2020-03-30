@@ -1,0 +1,69 @@
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:name="vector"
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <group
+                android:name="group"
+                android:pivotX="12"
+                android:pivotY="12"
+                android:rotation="-90">
+                <path
+                    android:name="eraser"
+                    android:pathData="M 20.653 12.01 L 20.653 3.487 L 3.442 3.487 L 3.442 20.534 L 20.653 20.534 L 20.653 12.01"
+                    android:fillColor="#ffffff"
+                    android:strokeColor="#ffffff"
+                    android:strokeWidth="1"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round"/>
+                <path
+                    android:name="pencil"
+                    android:pathData="M 18.012 5.646 C 17.898 5.532 17.741 5.462 17.567 5.462 C 17.219 5.462 16.937 5.744 16.937 6.092 C 16.937 6.092 16.937 6.092 16.937 6.092 C 16.937 6.44 17.219 6.722 17.567 6.722 C 17.915 6.722 18.197 6.44 18.197 6.092 C 18.197 6.005 18.179 5.922 18.148 5.847 C 18.116 5.771 18.07 5.704 18.012 5.646"
+                    android:fillColor="#ffffff"
+                    android:strokeColor="#ffffff"
+                    android:strokeWidth="1"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round"/>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:duration="300"
+                android:valueFrom="0"
+                android:valueTo="0"
+                android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+    <target android:name="pencil">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="pathData"
+                android:startOffset="100"
+                android:duration="100"
+                android:valueFrom="M 18.012 5.646 C 17.898 5.532 17.741 5.462 17.567 5.462 C 17.219 5.462 16.937 5.744 16.937 6.092 C 16.937 6.092 16.937 6.092 16.937 6.092 C 16.937 6.44 17.219 6.722 17.567 6.722 C 17.915 6.722 18.197 6.44 18.197 6.092 C 18.197 6.005 18.179 5.922 18.148 5.847 C 18.116 5.771 18.07 5.704 18.012 5.646"
+                android:valueTo="M 13.391 7.368 C 11.729 8.976 10.068 10.583 8.406 12.191 C 6.745 13.798 5.083 15.405 3.422 17.013 C 3.429 18.195 3.435 19.376 3.442 20.558 C 4.606 20.543 5.77 20.529 6.934 20.514 C 10.216 17.21 13.497 13.905 16.779 10.601 C 16.228 10.086 15.676 9.572 15.125 9.057 C 14.547 8.494 13.969 7.931 13.391 7.368"
+                android:valueType="pathType"
+                android:interpolator="@android:anim/linear_interpolator"/>
+        </aapt:attr>
+    </target>
+    <target android:name="eraser">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="pathData"
+                android:duration="300"
+                android:valueFrom="M 20.653 12.01 L 20.653 3.487 L 3.442 3.487 L 3.442 20.534 L 20.653 20.534 L 20.653 12.01"
+                android:valueTo="M 17.255 3.487 L 16.07 4.677 L 14.885 5.867 L 18.325 9.164 L 20.653 6.838 L 17.255 3.487"
+                android:valueType="pathType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+</animated-vector>
