@@ -66,7 +66,7 @@ abstract class PomodoromeDatabase : RoomDatabase() {
                 0L,
                 0L,
                 0L,
-                TimerStateType.STOPPED                 // state is stopped until user kicks it off
+                TimerState.STOPPED                 // state is stopped until user kicks it off
             )
 
             activeTimerDao.insert(activeTimer)

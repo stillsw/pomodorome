@@ -21,6 +21,7 @@ import androidx.lifecycle.Observer
 import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.TICK_OVER
 import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.ticksSinceBlink
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
+import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import java.lang.Math.toDegrees
 import java.lang.Math.toRadians
@@ -715,11 +716,15 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
      * Activity calls this when a tick event happens
      * Get the times left on each timer and update their texts
      * If a minute advances, that's shown on the clock too
+     * If either timer expires the return type notifies the activity which it was
      */
-    fun doTick() {
-        if (isEditing) {     // ignore if edit is allowed
-            Log.d(LOG_TAG, "doTick: should not be called while editing")
-            return
+    fun doTick(): TimerType {
+
+        var returnType = TimerType.NONE
+
+        if (!activeTimerViewModel!!.getActiveTimer().isTrackingTiming()) {     // ignore if not timing
+            Log.d(LOG_TAG, "doTick: should only be called while playing or paused")
+            return returnType
         }
 
         val isPaused = activeTimerViewModel!!.getActiveTimer().isPaused()
@@ -728,10 +733,10 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
         for ((index, timeSetting) in timerWidgets.withIndex()) {
             (activeTimerViewModel!!.getElapsedMillis(index == WORK, now)).also {
-                    elapsedMillis ->
-                    timeSetting.timePickerTextView?.setTime(elapsedMillis, ticking = true, isPaused = isPaused)
-                    totalElapsed += elapsedMillis
-                }
+                elapsedMillis ->
+                timeSetting.timePickerTextView?.setTime(elapsedMillis, ticking = true, isPaused = isPaused)
+                totalElapsed += elapsedMillis
+            }
         }
 
         // cause a redraw if the number of minutes has changed
@@ -741,12 +746,24 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
                 minutesElapsedDrawnSweepAngle = this / MINUTES * FULL_CIRCLE
                 Log.d(LOG_TAG, "doTick: tick over the next minute ($this, angle=$minutesElapsedDrawnSweepAngle)")
                 invalidate()
+
+                // for the alarm to fire it has to be a) playing, b) expiring this particular timer
+                if (activeTimerViewModel!!.getActiveTimer().isPlaying()) {
+                    if (minutesElapsedWhenTicking == 0L) { // just got set
+                        returnType = TimerType.POMODORO
+                    }
+                    else if (minutesElapsedWhenTicking == timerWidgets[WORK].minutes.toLong()) {
+                        returnType = TimerType.REST
+                    }
+                }
             }
         }
 
         if (ticksSinceBlink++ >= TICK_OVER * 2) {   // blink, next time
             ticksSinceBlink = 0
         }
+
+        return returnType
     }
 }
 

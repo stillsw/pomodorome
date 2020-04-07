@@ -6,6 +6,8 @@ import androidx.databinding.BindingAdapter
 /**
  * See databinding codelab how to create adapters
  * https://codelabs.developers.google.com/codelabs/android-databinding
+ *
+ * This one isn't now used, and using it actually caused build version errors between tools
  */
 @BindingAdapter("app:hideIfZero")
 fun hideIfZero(view: View, number: Long) {

@@ -2,5 +2,11 @@
     <string name="app_name">Pomodoro Me</string>
     <string name="rest_prompt">🛀🏽️</string>
     <string name="work_prompt">🧑🏽‍💻</string>
+    <string name="ringtone_pref_key_POMODORO" translatable="false">com.stillwindsoftware.pomodorome.ringtone.POMODORO</string>
+    <string name="ringtone_pref_key_REST" translatable="false">com.stillwindsoftware.pomodorome.ringtone.REST</string>
+    <string name="dialog_btn_stop">Stop</string>
+    <string name="notification_pomodoro">Pomodoro time complete</string>
+    <string name="notification_rest">Rest time complete</string>
+
 <!-- 🧑🏽‍🎓  -->
 </resources>

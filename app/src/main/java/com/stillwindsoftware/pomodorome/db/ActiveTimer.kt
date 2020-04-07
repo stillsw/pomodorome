@@ -16,12 +16,12 @@ data class ActiveTimer(
     @ColumnInfo(name = "start_time") var startTime: Long,
     @ColumnInfo(name = "pause_at_time") var pauseAtTime: Long,
     @ColumnInfo(name = "paused_accum") var previousPausesAccumulated: Long,
-    @ColumnInfo(name = "timer_state") var timerState: TimerStateType
+    @ColumnInfo(name = "timer_state") var timerState: TimerState
 ) {
 
     fun pause() {
         pauseAtTime = System.currentTimeMillis()
-        timerState = TimerStateType.PAUSED
+        timerState = TimerState.PAUSED
     }
 
     fun start() {
@@ -34,36 +34,39 @@ data class ActiveTimer(
             startTime = now
         }
 
-        timerState = TimerStateType.PLAYING
+        timerState = TimerState.PLAYING
     }
 
     fun stop() {
         startTime = 0L
         pauseAtTime = 0L
         previousPausesAccumulated = 0L
-        timerState = TimerStateType.STOPPED
+        timerState = TimerState.STOPPED
     }
 
     fun edit() {
         startTime = 0L
         pauseAtTime = 0L
         previousPausesAccumulated = 0L
-        timerState = TimerStateType.EDITED
+        timerState = TimerState.EDITED
     }
 
-    fun getMillisTillNextEvent(now: Long): Long {
+    /**
+     * Alarms processing uses this to create alarm to fire for the next time one of the timers expires
+     */
+    fun getMillisTillNextEvent(now: Long): Pair<TimerType, Long>? {
 
         return when (timerState) {
-            TimerStateType.PLAYING -> {
-                getElapsedMillis(now).also { elapsedTiming ->
-                    if (elapsedTiming < pomodoroDuration) {
-                        pomodoroDuration - elapsedTiming
-                    } else {
-                        pomodoroDuration + restDuration - elapsedTiming
-                    }
+            TimerState.PLAYING -> {
+                val elapsedTiming = getElapsedMillis(now)
+                // the next event is the other one than is current, unless rest duration is 0, then always pomodoro
+                if (elapsedTiming < pomodoroDuration && restDuration != 0L) {
+                    TimerType.REST to pomodoroDuration - elapsedTiming
+                } else {
+                    TimerType.POMODORO to pomodoroDuration + restDuration - elapsedTiming
                 }
             }
-            else -> Long.MAX_VALUE
+            else -> null
         }
     }
 
@@ -71,15 +74,15 @@ data class ActiveTimer(
         val fromTime = if (isPaused()) pauseAtTime else now
         with(fromTime - startTime - previousPausesAccumulated) {       // this = total elapsed since start
             return (this % (pomodoroDuration + restDuration)).also {     // it = elapsed in this timing
-                Log.v(LOG_TAG, "getElapsedMillis: totalMillis=$this elapsedTime=$it")
+                Log.v(LOG_TAG, "getElapsedMillis: totalMillis=$this elapsedTime=$it bothDurations=${pomodoroDuration + restDuration} pom=$pomodoroDuration rest=$restDuration")
             }
         }
     }
 
-    fun isPlaying() = timerState == TimerStateType.PLAYING
-    fun isPaused() = timerState == TimerStateType.PAUSED
-    fun isStopped() = timerState == TimerStateType.STOPPED
-    fun isEdited() = timerState == TimerStateType.EDITED
+    fun isPlaying() = timerState == TimerState.PLAYING
+    fun isPaused() = timerState == TimerState.PAUSED
+    fun isStopped() = timerState == TimerState.STOPPED
+    fun isEdited() = timerState == TimerState.EDITED
     fun isTrackingTiming() = isPlaying() || isPaused()
 
     companion object {
@@ -95,4 +98,7 @@ abstract class ActiveTimerDao : BaseDao<ActiveTimer> {
 
     @Query("DELETE FROM active_timers")
     abstract suspend fun deleteAll()
+
+    @Query( "SELECT timer_state FROM active_timers")
+    abstract fun getTimerState(): TimerState
 }

@@ -50,7 +50,7 @@
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/paused_accum"
+            app:layout_constraintBottom_toTopOf="@id/state"
             android:layout_margin="@dimen/time_picker_margin"
             />
 
@@ -136,16 +136,6 @@
             tools:text="@string/rest_prompt" /-->
 
         <TextView
-            android:id="@+id/paused_accum"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@{Long.toString(viewmodel.timer.previousPausesAccumulated)}"
-            app:hideIfZero="@{viewmodel.timer.previousPausesAccumulated}"
-            app:layout_constraintBottom_toTopOf="@id/state"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/time_picker_circle" />
-
-        <TextView
             android:id="@+id/state"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -153,7 +143,7 @@
             app:layout_constraintBottom_toTopOf="@id/ad_space"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/paused_accum" />
+            app:layout_constraintTop_toBottomOf="@+id/time_picker_circle" />
 
         <androidx.emoji.widget.EmojiAppCompatTextView
             android:layout_width="wrap_content"
@@ -163,7 +153,7 @@
             android:textColor="@color/timerText"
             android:textSize="@dimen/timer_text_size"
             android:textStyle="normal"
-            app:layout_constraintBaseline_toBaselineOf="@id/state"
+            app:layout_constraintBottom_toTopOf="@id/state"
             app:layout_constraintStart_toStartOf="parent"
             tools:text="@string/work_prompt" />
 

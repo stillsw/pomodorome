@@ -1,13 +1,11 @@
 package com.stillwindsoftware.pomodorome.viewmodels
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase
-import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
 import kotlinx.coroutines.launch
 
 /**
@@ -20,9 +18,10 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         private const val LOG_TAG = "ActiveTimerViewModel"
     }
 
+    val timer: LiveData<ActiveTimer>
+
     // The ViewModel maintains a reference to the repository to get data.
     private val repository: PomodoromeRepository
-    val timer: LiveData<ActiveTimer>
 
     init {
         val activeTimerDao = PomodoromeDatabase.getDatabase(application, viewModelScope).activeTimerDao()
@@ -32,14 +31,15 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
 
     /**
      * A wrapper for update() in the database
-     */
+     * Also detects any change that is to a playing timer and notifies the alarm manager
+     * (updates it, changes it to another state, changes from another state to playing)
+    */
     private fun update(activeTimer: ActiveTimer) = viewModelScope.launch {
         repository.update(activeTimer)
     }
 
     /**
-     * Called from the "minutes" delegate of each timer when input is allowed (ie. editing)
-     * and the value changed
+     * Called from the "minutes" delegate of each timer when the value changed in edit mode
      */
     fun updateTime(timeInMillis: Long, isWorkTime: Boolean) {
         val activeTimer = timer.value!!
@@ -47,12 +47,10 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         if (isWorkTime && timeInMillis != activeTimer.pomodoroDuration) {
             activeTimer.pomodoroDuration = timeInMillis
             update(activeTimer)
-            Log.v(LOG_TAG, "updateTime: pomodoro duration updated")
         }
         else if (!isWorkTime && timeInMillis != activeTimer.restDuration) {
             activeTimer.restDuration = timeInMillis
             update(activeTimer)
-            Log.v(LOG_TAG, "updateTime: rest duration updated")
         }
     }
 
@@ -62,18 +60,10 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         timer.value!!.also {
             if (it.isPlaying()) {
                 it.pause()
-
-                // todo cancel alarm - NO, do the alarm processing in repo.update()
-
                 isStart = false
             }
             else {
                 it.start()
-                val nextEvent = it.getMillisTillNextEvent(System.currentTimeMillis())
-                Log.d(LOG_TAG, "start: next event in ${nextEvent / ONE_MINUTE} mins and ${nextEvent % ONE_MINUTE} secs")
-
-                //todo create alarm
-
             }
             update(it)
 
@@ -86,11 +76,7 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         timer.value!!.also {
             if (!it.isStopped()) {
                 it.stop()
-                Log.d(LOG_TAG, "stop: ")
-
                 update(it)
-
-                //todo cancel alarms
             }
         }
     }
@@ -99,15 +85,14 @@ class ActiveTimerViewModel(application: Application) : AndroidViewModel(applicat
         timer.value!!.also {
             if (!it.isEdited()) {
                 it.edit()
-                Log.d(LOG_TAG, "edit: update")
-
                 update(it)
-
-                //todo cancel alarms
             }
         }
     }
 
+    /**
+     * Convenience method
+     */
     fun getActiveTimer() = timer.value!!
 
     /**

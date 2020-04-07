@@ -1,21 +1,25 @@
 package com.stillwindsoftware.pomodorome
 
-import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
-import androidx.core.graphics.drawable.DrawableCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
+import com.stillwindsoftware.pomodorome.db.TimerType
+import com.stillwindsoftware.pomodorome.events.Alarms
+import com.stillwindsoftware.pomodorome.events.Notifications
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import com.stillwindsoftware.pomodorome.viewmodels.PomodoromeRepository
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 /**
  * Thanks to Alex Lockwood for his excellent shape shifter path morphing tool which I used
@@ -36,7 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pencilToStopDrawable: AnimatedVectorDrawableCompat
     private lateinit var stopToPencilDrawable: AnimatedVectorDrawableCompat
 
-    // timer ticking is controlled by a runnable posted delayed every 1/3 second
+    // timer ticking is controlled by a runnable posted delayed every 1/10 second
     // it's started from the callback from the TimePickerCircle view which is
     // observing the View Model
 
@@ -51,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val viewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
+    private val alarms = Alarms(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +66,7 @@ class MainActivity : AppCompatActivity() {
         binding.viewmodel = viewModel
 
         setSupportActionBar(toolbar)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notifications(this).createNotificationChannel()
 
         time_picker_circle.timerWidgets[TimePickerCircle.WORK].timePickerTextView = work_time
         time_picker_circle.timerWidgets[TimePickerCircle.REST].timePickerTextView = rest_time
@@ -82,12 +88,14 @@ class MainActivity : AppCompatActivity() {
 //
 //        }
 
+        Log.d(LOG_TAG, "callbackChangeToTimer: call update tracking isTracking=${activeTimer.isTrackingTiming()}")
         // change of state, ticking the timers turns on or off
         updateTrackingOnTimedViews(activeTimer.isTrackingTiming())
 
         // when first start up the animated vector buttons have no drawable assigned
         if (play_button.drawable == null) {
 //todo bug, not sure why stop to pencil is sometimes wrong image            val stopBitmap = BitmapDrawable(resources, stopToPencilDrawable.toBitmap())
+// todo seems pause sometimes too, when already on pause, turn device and it's showing pause again
             play_button.setImageDrawable(if (activeTimer.isPlaying()) pauseToPlayDrawable else playToPauseDrawable)
             edit_button.setImageDrawable(if (activeTimer.isStopped()) pencilToStopDrawable else stopToPencilDrawable)
         }
@@ -97,19 +105,44 @@ class MainActivity : AppCompatActivity() {
      * Timing will track automatically after the activity is created, but if it's
      * restarted have to test for getting it going again
      */
-    override fun onStart() {
-        super.onStart()
+    override fun onResume() {
+        super.onResume()
+
         if (isTimingBeingTrackedViews) {
             updateTrackingOnTimedViews(true)
+
+            //todo also here detect if need to be showing rest prompts... ie. in rest time
         }
+
     }
 
     /**
-     * Stop ticking the timers
+     * Background alarm and notification canceled, here rather than in onStop() because the
+     * notification may start this activity to show
+     * wake up on the notification, the drawback is the drain on the battery to keep a
+     * background alarm going.
+     */
+    override fun dispatchTouchEvent(event: MotionEvent?): Boolean {
+        val ret = super.dispatchTouchEvent(event)
+        if (event?.action == MotionEvent.ACTION_DOWN) {
+            Log.d(LOG_TAG, "dispatchTouchEvent: action down, cancel background alarm and notification")
+            alarms.cancelBackgroundAlarm()
+            Notifications(this).cancelNotifications()
+        }
+        return ret
+    }
+
+    /**
+     * Set an alarm for the next event only if currently playing
      */
     override fun onStop() {
         super.onStop()
-        updateTrackingOnTimedViews(false)
+
+        with(viewModel.getActiveTimer()) {
+            if (this.isPlaying()) {
+                alarms.setBackgroundAlarm(this)
+            }
+        }
     }
 
     /**
@@ -124,7 +157,12 @@ class MainActivity : AppCompatActivity() {
 
         if (isTimingBeingTrackedViews && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
 
-            time_picker_circle.doTick()
+            with(time_picker_circle.doTick()) {
+                if (this != TimerType.NONE) {
+                    Log.d(LOG_TAG, "updateTrackingOnTimedViews: timer expired this go round")
+                    timerExpiredWhileTicking(this)
+                }
+            }
 
             if (!isTimerTrackingRunnablePosted) {
                 isTimerTrackingRunnablePosted = true
@@ -134,8 +172,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Only reacts if there's a timer, which there will always be, but wrapped in let
-     * for extra safety anyway
+     * React to timer expiring while the app is running:
+     * - play a sound if set (in a coroutine so it can also wait a bit and then stop the ringtone)
+     * - vibrate if set
+     * - show rest time prompts
+     */
+    private fun timerExpiredWhileTicking(timerType: TimerType) {
+        //todo add vibrate and prompting etc
+        MainScope().launch {
+            alarms.playAlarmSound(timerType)
+        }
+    }
+
+    /**
+     * Toggles between playing a paused
      */
     fun playPausePressed(@Suppress("UNUSED_PARAMETER") view: View) {
 

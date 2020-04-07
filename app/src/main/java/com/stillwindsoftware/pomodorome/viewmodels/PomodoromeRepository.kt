@@ -1,7 +1,6 @@
 package com.stillwindsoftware.pomodorome.viewmodels
 
 import android.content.Context
-import android.graphics.Color
 import androidx.core.provider.FontRequest
 import android.util.Log
 import androidx.emoji.text.EmojiCompat
@@ -10,7 +9,7 @@ import androidx.lifecycle.LiveData
 import com.stillwindsoftware.pomodorome.R
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
 import com.stillwindsoftware.pomodorome.db.ActiveTimerDao
-import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase
+import com.stillwindsoftware.pomodorome.events.Alarms
 
 /**
  * Following the suggested best practice for Room, the repository is created by the view model

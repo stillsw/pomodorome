@@ -19,23 +19,30 @@ interface BaseDao<T> {
     suspend fun update(vararg obj: T)
 }
 
-enum class TimerStateType(val styledAttributeName: IntArray) {
+enum class TimerState(val styledAttributeName: IntArray) {
     PLAYING(intArrayOf(R.attr.timerPlaying)),
     PAUSED(intArrayOf(R.attr.timerPaused)),
     STOPPED(intArrayOf(R.attr.timerPaused)),
     EDITED(intArrayOf(R.attr.timerEdited))
 }
 
+/**
+ * A bit nicer than using constants, see TimePickerCircle
+ */
+enum class TimerType() {
+    POMODORO, REST, NONE
+}
+
 class Converters {
 
     @TypeConverter
-    fun timerStateTypeToString(stateType: TimerStateType?): String? {
+    fun timerStateToString(stateType: TimerState?): String? {
         return stateType?.toString()
     }
 
     @TypeConverter
-    fun stringToTimerStateType(str: String?): TimerStateType? {
-        return if (str != null) TimerStateType.valueOf(str) else null
+    fun stringToTimerState(str: String?): TimerState? {
+        return if (str != null) TimerState.valueOf(str) else null
     }
 
 }

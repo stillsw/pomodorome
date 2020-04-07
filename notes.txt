@@ -2,18 +2,28 @@ stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before
     probably have to call request dismiss keyguard
     
 bugs
-     
+    paused turn orientation, still getting the pause sign problem
+    when start app after alarm time has passed the alarm sounds... doTick() is incorrectly testing for a change of minutes
+    
 next 
+    do notifications/alarms
+        do stop notification
+        and wake up screen
+        and setting next alarm
+    
     filling the arc of time elapsed, still needs something a bit nicer...
         also how about some kind of path morphing for ticking?
 
     make sure on tablet, the times are not too small in the middle
         
     make a toolbar and other views
-    do notifications/alarms
-    settings for everything    
+    settings for everything, prompts for rest time 
     
     if move away from using emojis, remove all dependencies etc
+        unless allow user to add own rest prompts
     
     launcher icon
+    
+    ads
 
+    manifest declares app is available for instant... test it works
