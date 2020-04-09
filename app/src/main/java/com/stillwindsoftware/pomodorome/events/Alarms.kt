@@ -13,9 +13,9 @@ import androidx.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
 import com.stillwindsoftware.pomodorome.BuildConfig
+import com.stillwindsoftware.pomodorome.MainActivity
 import com.stillwindsoftware.pomodorome.R
-import com.stillwindsoftware.pomodorome.db.ActiveTimer
-import com.stillwindsoftware.pomodorome.db.TimerType
+import com.stillwindsoftware.pomodorome.db.*
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -30,7 +30,8 @@ class Alarms(private val context: Context) {
         internal const val REQ_CODE = "request"
         internal const val REQ_CODE_ALARM = 88888
         internal const val REQ_CODE_NOTIFICATION = 77777
-        internal const val REQ_CODE_STOP = 88877
+        internal const val REQ_CODE_PAUSE = 88877
+        internal const val REQ_CODE_RESTART = 88866
         internal const val REQ_CODE_OPEN_FROM_NOTIFICATION = 88855
         internal const val DATA_ALARM_TRIGGER_FOR_TYPE = "alarm_for_type"
         internal const val DATA_ALARM_TRIGGER_MILLIS = "alarm_trigger_millis"
@@ -111,7 +112,7 @@ class Alarms(private val context: Context) {
             getPreferredRingtoneUri(timerType)?.let {uri ->
                 RingtoneManager.getRingtone(context, uri)?.also {ringtone ->
 
-                    withContext(Dispatchers.Default) {
+                    withContext(Dispatchers.IO) {
 
                         // play it as media, so user has better volume controls
                         MediaPlayer.create(context, uri).apply {
@@ -189,31 +190,69 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
 
         val triggerAtMillis = intent.getLongExtra(Alarms.DATA_ALARM_TRIGGER_MILLIS, -1L)
+        val timerType = TimerType.valueOf(intent.getStringExtra(Alarms.DATA_ALARM_TRIGGER_FOR_TYPE)!!)
 
         when (intent.getIntExtra(Alarms.REQ_CODE, -1)) {
             Alarms.REQ_CODE_ALARM -> {
-                val timerType = TimerType.valueOf(intent.getStringExtra(Alarms.DATA_ALARM_TRIGGER_FOR_TYPE)!!)
 
                 // timer has either expired now or this is a repeat alarm since no responses to previous alarm(s)
                 val elapsedSinceTrigger = (System.currentTimeMillis() - triggerAtMillis) / 1000f
                 Log.d(LOG_TAG, "onReceive: backgroundAlarm for ($timerType) triggered $elapsedSinceTrigger seconds ago")
 
                 MainScope().launch {
-                    Alarms(context).playAlarmSound(timerType)
+                    Alarms(context).apply {
+                        playAlarmSound(timerType)
+
+                        withTimerIOThread(context) {
+                            Log.d(LOG_TAG, "onReceive: setup next background alarm: timer=${it}")
+                            setBackgroundAlarm(it)
+                        }
+                    }
                 }
 
                 // show the user a notification as the activity is not in foreground (or the broadcast would've been cancelled)
-
-                Notifications(context).sendNotification(timerType, triggerAtMillis)
-
-                //todo trigger a new alarm when the next timer expires
-//                expireActiveTimersAndSetNextAlarm(context, timerId, userDesc)
-
-                //todo receive a stop even from the notification (cancel notification and background alarm)
+                Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
             }
-            else -> {
+            Alarms.REQ_CODE_PAUSE -> {
+                // user pressed pause from the notification, cancel further alarms
+                // because the alarm will have triggered a repeat
 
+                Alarms(context).cancelBackgroundAlarm()
+
+                MainScope().launch {
+                    withTimerIOThread(context, update = true) {
+                        Log.d(LOG_TAG, "onReceive: pause and update notification timer=${it}")
+                        it.pause()
+                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PAUSED)
+                    }
+                }
             }
+            Alarms.REQ_CODE_RESTART -> {
+                // user pressed restart from the notification, cancel the notification
+                // and set the alarm for when it next needs to wake up
+
+                Notifications(context).cancelNotifications()
+
+                MainScope().launch {
+                    withTimerIOThread(context, update = true) {
+                        Log.d(LOG_TAG, "onReceive: restart and update notification timer=${it}")
+                        it.start()
+                        Alarms(context).setBackgroundAlarm(it)
+//                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
+                    }
+                }
+            }
+            Alarms.REQ_CODE_NOTIFICATION -> {
+                // user pressed on the notification itself, goto activity
+
+                Notifications(context).cancelNotifications()
+                Log.d(LOG_TAG, "onReceive: from sendNotification: start activity")
+                context.startActivity(Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                    putExtra(Alarms.REQ_CODE, Alarms.REQ_CODE_OPEN_FROM_NOTIFICATION)
+                })
+            }
+            else -> Log.d(LOG_TAG, "onReceive: sendNotification: request code not recognized")
         }
     }
 

@@ -96,6 +96,13 @@ abstract class ActiveTimerDao : BaseDao<ActiveTimer> {
     @Query("SELECT * FROM active_timers")
     abstract fun getTimer(): LiveData<ActiveTimer>
 
+    /**
+     * After firing an alarm, the receiver needs to trigger another one, it's already
+     * not in UI scope, and doesn't need to track changes
+     */
+    @Query("SELECT * FROM active_timers")
+    abstract fun getTimerDirect(): ActiveTimer
+
     @Query("DELETE FROM active_timers")
     abstract suspend fun deleteAll()
 

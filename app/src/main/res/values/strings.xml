@@ -4,9 +4,11 @@
     <string name="work_prompt">🧑🏽‍💻</string>
     <string name="ringtone_pref_key_POMODORO" translatable="false">com.stillwindsoftware.pomodorome.ringtone.POMODORO</string>
     <string name="ringtone_pref_key_REST" translatable="false">com.stillwindsoftware.pomodorome.ringtone.REST</string>
-    <string name="dialog_btn_stop">Stop</string>
-    <string name="notification_pomodoro">Pomodoro time complete</string>
-    <string name="notification_rest">Rest time complete</string>
+    <string name="notification_button_restart">Resume Timing</string>
+    <string name="notification_button_pause">Pause Timing</string>
+    <string name="notification_paused">Timing paused</string>
+    <string name="notification_pomodoro">In rest time</string>
+    <string name="notification_rest">In pomodoro time</string>
 
 <!-- 🧑🏽‍🎓  -->
 </resources>

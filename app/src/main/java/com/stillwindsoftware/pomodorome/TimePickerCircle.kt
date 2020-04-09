@@ -15,6 +15,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import androidx.annotation.HalfFloat
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.lifecycle.Observer
@@ -54,6 +55,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
         const val WORK = 0
         const val REST = 1
         private const val MINUTES = 60f
+        private const val HALF_SECOND = 500L
         private const val FULL_CIRCLE = 360f
         private const val QUARTER_CIRCLE = 90f
         private const val TWELVE_O_CLOCK = 270f
@@ -749,11 +751,16 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
                 // for the alarm to fire it has to be a) playing, b) expiring this particular timer
                 if (activeTimerViewModel!!.getActiveTimer().isPlaying()) {
-                    if (minutesElapsedWhenTicking == 0L) { // just got set
-                        returnType = TimerType.POMODORO
-                    }
-                    else if (minutesElapsedWhenTicking == timerWidgets[WORK].minutes.toLong()) {
-                        returnType = TimerType.REST
+
+                    // when just opening from hearing the alarm the minute is still at the change over but
+                    // the alarm has already fired, so check within half second of it to avoid triggering again
+
+                    if ((totalElapsed % ONE_MINUTE < HALF_SECOND)) {
+                        if (minutesElapsedWhenTicking == 0L) {
+                            returnType = TimerType.POMODORO
+                        } else if (minutesElapsedWhenTicking == timerWidgets[WORK].minutes.toLong()) {
+                            returnType = TimerType.REST
+                        }
                     }
                 }
             }

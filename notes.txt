@@ -3,13 +3,13 @@ stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before
     
 bugs
     paused turn orientation, still getting the pause sign problem
-    when start app after alarm time has passed the alarm sounds... doTick() is incorrectly testing for a change of minutes
+    and after pause, then open app from notification (restart, perhaps not when created), the icon is wrongly showing pause symbol while paused
     
 next 
     do notifications/alarms
-        do stop notification
         and wake up screen
-        and setting next alarm
+            but when user opens the app, the notification is removed... check with intent probably
+        
     
     filling the arc of time elapsed, still needs something a bit nicer...
         also how about some kind of path morphing for ticking?
