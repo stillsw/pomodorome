@@ -1,0 +1,51 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="@string/sounds_header">
+
+        <!-- NOTE: the keys to these 2 should not be changed, they have to match TimerType -->
+        <androidx.preference.Preference
+            app:key="com.stillwindsoftware.pomodorome.ringtone.POMODORO"
+            app:title="@string/ringtone_pref_title_POMODORO"/>
+
+        <androidx.preference.Preference
+            app:key="com.stillwindsoftware.pomodorome.ringtone.REST"
+            app:title="@string/ringtone_pref_title_REST"/>
+
+    </PreferenceCategory>
+
+    <CheckBoxPreference
+        app:key="@string/keepScreenAwake_pref_key"
+        app:title="@string/settingsKeep_screen_awake_while_active_label"
+        app:summaryOn="@string/settingsKeep_screen_awake_while_active_summaryOn"
+        app:summaryOff="@string/settingsKeep_screen_awake_while_active_summaryOff"
+        app:defaultValue="true"/>
+
+        <EditTextPreference
+            app:key="signature"
+            app:title="@string/signature_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="reply"
+            app:entries="@array/reply_entries"
+            app:entryValues="@array/reply_values"
+            app:key="reply"
+            app:title="@string/reply_title"
+            app:useSimpleSummaryProvider="true" />
+
+    <PreferenceCategory app:title="@string/sync_header">
+
+        <SwitchPreferenceCompat
+            app:key="sync"
+            app:title="@string/sync_title" />
+
+        <SwitchPreferenceCompat
+            app:dependency="sync"
+            app:key="attachment"
+            app:summaryOff="@string/attachment_summary_off"
+            app:summaryOn="@string/attachment_summary_on"
+            app:title="@string/attachment_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

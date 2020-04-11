@@ -3,9 +3,7 @@
     xmlns:dist="http://schemas.android.com/apk/distribution"
     package="com.stillwindsoftware.pomodorome">
 
-    <dist:module dist:instant="true" />
-
-    <!-- explicitly declare features not req'd so can get listed for tablets -->
+    <dist:module dist:instant="true" /> <!-- explicitly declare features not req'd so can get listed for tablets -->
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
@@ -23,10 +21,13 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:launchMode="singleTask"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:launchMode="singleTask"
         android:theme="@style/AppTheme.NoActionBar">
+        <activity
+            android:name=".SettingsActivity"
+            android:label="@string/title_activity_settings"></activity>
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

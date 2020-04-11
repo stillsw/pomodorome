@@ -4,8 +4,17 @@ stovetimer failed to wake up samsung galaxy nexus... not sure why, it did before
 bugs
     paused turn orientation, still getting the pause sign problem
     and after pause, then open app from notification (restart, perhaps not when created), the icon is wrongly showing pause symbol while paused
+    when edit a time and then start it, it's now sounding the alarm
+        makes sense why, but it shouldn't do it
     
 next 
+    prefs
+        removed these from TimerTypes (now using overloaded operator functions)... make sure works
+//        fun fromRingToneKey(key: String) = ringtoneMap[key]
+//        fun fromRequestCode(key: Int) = requestCodeMap[key]
+        when playing and go to prefs screen it sets the background alarm
+            have to make sure when return from prefs it cancels that
+
     do notifications/alarms
         and wake up screen
             but when user opens the app, the notification is removed... check with intent probably
@@ -24,6 +33,6 @@ next
     
     launcher icon
     
-    ads
+    ads, incl preference stuff
 
     manifest declares app is available for instant... test it works

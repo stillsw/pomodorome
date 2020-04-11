@@ -28,9 +28,25 @@ enum class TimerState(val styledAttributeName: IntArray) {
 
 /**
  * A bit nicer than using constants, see TimePickerCircle
+ * The associate values are for preference keys and reverse lookup via
+ * the companion lookup overloaded operator functions
+ * NOTE: the ringtone keys to these should not be changed, they have to match the key values in
+ * root_preferences.xml
  */
-enum class TimerType() {
-    POMODORO, REST, NONE
+enum class TimerType(val ringToneKey: String, val requestCode: Int) {
+    POMODORO("com.stillwindsoftware.pomodorome.ringtone.POMODORO", 99),
+    REST("com.stillwindsoftware.pomodorome.ringtone.REST", 90),
+    NONE("", -1);
+
+    companion object {
+        // really neat, can now use array syntax with string key or request code to lookup
+        // eg. TimerType[aRingToneKey], (see SettingActivity)
+        private val ringtoneMap = values().associateBy(TimerType::ringToneKey)
+        operator fun get(key: String) = ringtoneMap[key]
+
+        private val requestCodeMap = values().associateBy(TimerType::requestCode)
+        operator fun get(key: Int) = requestCodeMap[key]
+    }
 }
 
 class Converters {

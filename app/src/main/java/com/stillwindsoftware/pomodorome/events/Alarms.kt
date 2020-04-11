@@ -135,44 +135,30 @@ class Alarms(private val context: Context) {
         }
     }
 
-    private fun getPreferredRingtoneUri(timerType: TimerType): Uri? {
+    /**
+     * return the uri stored for the preference if there is one and if not
+     * try to get the default ringtone, failing that, the application default
+     */
+    internal fun getPreferredRingtoneUri(timerType: TimerType): Uri? {
 
-        // return the uri stored for the preference if there is one
-
-        with(PreferenceManager.getDefaultSharedPreferences(context)) {
-            with(getString(context.getString(if (timerType == TimerType.POMODORO) R.string.ringtone_pref_key_POMODORO
-                                             else R.string.ringtone_pref_key_REST), null)) {
-
-                if (this != null && isNotEmpty()) {
-                    Log.d(LOG_TAG, "getPreferredRingtoneUri: found existing = $this")
-                    return Uri.parse(this)
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .also { sharedPreferences ->
+                sharedPreferences.getString(timerType.ringToneKey, null)?.let {
+                    Log.d(LOG_TAG, "getPreferredRingtoneUri: found existing = $it")
+                    return Uri.parse(it)
                 }
             }
-        }
 
-        // none stored, so try to get the default
+        // none stored, so try to get a default
 
         return if (Settings.System.DEFAULT_RINGTONE_URI != null) {
             Settings.System.DEFAULT_RINGTONE_URI
         }
         else {
-            val applicationContext = context.applicationContext
-            Log.d(LOG_TAG, "getPreferredRingtoneUri: no pref stored, using application default (app context=$applicationContext)")
-            RingtoneManager.getActualDefaultRingtoneUri(applicationContext, RingtoneManager.TYPE_ALARM)
-        }
-
-    }
-
-    fun setPreferredRingtone(timerType: TimerType, ringtoneUri: Uri) {
-
-        with(PreferenceManager.getDefaultSharedPreferences(context)) {
-
-            val prefKey = getString(context.getString(if (timerType == TimerType.POMODORO) R.string.ringtone_pref_key_POMODORO
-                                             else R.string.ringtone_pref_key_REST), null)
-
-            val editor = this.edit()
-            editor.putString(prefKey!!, ringtoneUri.toString())
-            editor.apply()
+            context.applicationContext.let {
+                Log.d(LOG_TAG, "getPreferredRingtoneUri: no pref stored, using application default (app context=$it)")
+                RingtoneManager.getActualDefaultRingtoneUri(it, RingtoneManager.TYPE_ALARM)
+            }
         }
     }
 

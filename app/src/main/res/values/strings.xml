@@ -2,13 +2,34 @@
     <string name="app_name">Pomodoro Me</string>
     <string name="rest_prompt">🛀🏽️</string>
     <string name="work_prompt">🧑🏽‍💻</string>
-    <string name="ringtone_pref_key_POMODORO" translatable="false">com.stillwindsoftware.pomodorome.ringtone.POMODORO</string>
-    <string name="ringtone_pref_key_REST" translatable="false">com.stillwindsoftware.pomodorome.ringtone.REST</string>
     <string name="notification_button_restart">Resume Timing</string>
     <string name="notification_button_pause">Pause Timing</string>
     <string name="notification_paused">Timing paused</string>
     <string name="notification_pomodoro">In rest time</string>
     <string name="notification_rest">In pomodoro time</string>
 
-<!-- 🧑🏽‍🎓  -->
+    <!-- Preferences -->
+    <string name="title_activity_settings">Settings</string>
+    <string name="settingsKeep_screen_awake_while_active_label">While a timer is running</string>
+    <string name="settingsKeep_screen_awake_while_active_summaryOn">Keep screen on</string>
+    <string name="settingsKeep_screen_awake_while_active_summaryOff">Don\'t keep screen on</string>
+    <string name="keepScreenAwake_pref_key" translatable="false">com.stillwindsoftware.pomodorome.keep_awake</string>
+    <string name="ringtone_pref_title_POMODORO">Begin Pomodoro time</string>
+    <string name="ringtone_pref_title_REST">Begin Rest time</string>
+
+    <string name="sounds_header">Alarm Sounds</string>
+    <string name="sync_header">Sync</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails
+    </string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+
+    <!-- 🧑🏽‍🎓  -->
 </resources>
