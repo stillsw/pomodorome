@@ -13,27 +13,23 @@
 
     </PreferenceCategory>
 
-    <CheckBoxPreference
+    <PreferenceCategory app:title="@string/timed_settings_header">
+
+        <Preference
+            app:title="@string/auto_start_stop_title"
+            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsAutoStartFragment" />
+
+    </PreferenceCategory>
+
+    <SwitchPreferenceCompat
         app:key="@string/keepScreenAwake_pref_key"
         app:title="@string/settingsKeep_screen_awake_while_active_label"
-        app:summaryOn="@string/settingsKeep_screen_awake_while_active_summaryOn"
-        app:summaryOff="@string/settingsKeep_screen_awake_while_active_summaryOff"
         app:defaultValue="true"/>
 
-        <EditTextPreference
+        <!--EditTextPreference
             app:key="signature"
             app:title="@string/signature_title"
             app:useSimpleSummaryProvider="true" />
-
-        <ListPreference
-            app:defaultValue="reply"
-            app:entries="@array/reply_entries"
-            app:entryValues="@array/reply_values"
-            app:key="reply"
-            app:title="@string/reply_title"
-            app:useSimpleSummaryProvider="true" />
-
-    <PreferenceCategory app:title="@string/sync_header">
 
         <SwitchPreferenceCompat
             app:key="sync"
@@ -45,7 +41,12 @@
             app:summaryOff="@string/attachment_summary_off"
             app:summaryOn="@string/attachment_summary_on"
             app:title="@string/attachment_title" />
-
-    </PreferenceCategory>
+        <ListPreference
+            app:defaultValue="reply"
+            app:entries="@array/reply_entries"
+            app:entryValues="@array/reply_values"
+            app:key="reply"
+            app:title="@string/reply_title"
+            app:useSimpleSummaryProvider="true" /-->
 
 </PreferenceScreen>

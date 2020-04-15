@@ -1,18 +1,32 @@
 package com.stillwindsoftware.pomodorome
 
+import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
+import android.text.format.DateFormat
+import android.util.AttributeSet
 import android.util.Log
+import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.Preference
-import androidx.preference.PreferenceFragmentCompat
-import androidx.preference.PreferenceManager
+import androidx.preference.*
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms
+import java.util.*
+import android.app.TimePickerDialog.OnTimeSetListener as OnTimeSetListener
 
-class SettingsActivity : AppCompatActivity() {
+/**
+ * The settings activity plus the fragments that make up the individual screens
+ * within
+ */
+class SettingsActivity : AppCompatActivity(),
+    PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+
+    companion object {
+        private const val LOG_TAG = "SettingsActivity"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,12 +36,40 @@ class SettingsActivity : AppCompatActivity() {
             .replace(R.id.settings, SettingsFragment())
             .commit()
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
     }
 
-    class SettingsFragment : PreferenceFragmentCompat() {
-        companion object {
-            private const val LOG_TAG = "SettingsFragment"
+    override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat, pref: Preference): Boolean {
+        val args = pref.extras
+        val fragment = supportFragmentManager.fragmentFactory.instantiate(classLoader,pref.fragment)
+        fragment.arguments = args
+        fragment.setTargetFragment(caller, 0)
+        // Replace the existing Fragment with the new Fragment
+        supportFragmentManager.beginTransaction()
+                .replace(R.id.settings, fragment)
+                .addToBackStack(null)
+                .commit()
+        return true
+    }
+
+    /**
+     * Up button would take us to the parent activity (main) every time, but when
+     * in a sub fragment don't want that, just pop it
+     */
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+
+        return if (item.itemId == android.R.id.home && supportFragmentManager.backStackEntryCount != 0) {
+            supportFragmentManager.popBackStackImmediate()
+            true
+        } else {
+            super.onOptionsItemSelected(item)
         }
+    }
+
+    /**
+     * The initial fragment shown
+     */
+    class SettingsFragment : PreferenceFragmentCompat() {
 
         /**
          * The 2 ringtones used preference summaries come from the ringtone titles
@@ -120,7 +162,7 @@ class SettingsActivity : AppCompatActivity() {
 
             with(PreferenceManager.getDefaultSharedPreferences(context)) {
 
-                edit().apply() {
+                edit().apply {
                     putString(timerType.ringToneKey, ringtoneUri.toString())
                     apply()
                 }
@@ -128,4 +170,90 @@ class SettingsActivity : AppCompatActivity() {
         }
 
     }
+
+    /**
+     * 2nd level fragment for just the settings related to auto-start of the app
+     */
+    class SettingsAutoStartFragment : PreferenceFragmentCompat() {
+
+        override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            addPreferencesFromResource(R.xml.timed_preferences)
+
+            val timeFormat = DateFormat.getTimeFormat(context).apply { timeZone = TimeZone.getTimeZone("GMT") }
+
+            with(PreferenceManager.getDefaultSharedPreferences(context)) {
+
+                // the key is a string resource
+
+                context!!.getString(R.string.auto_start_time_pref_key).also {key ->
+
+                    Log.d(LOG_TAG, "key = $key")
+
+                    // try to get the preference, default to 9am
+
+                    getLong(key, GregorianCalendar(TimeZone.getTimeZone("GMT")).onlyTimeMillis(9, 0))
+                        .also { prefValue ->
+
+                            Log.d(LOG_TAG, "key = $key value = $prefValue")
+
+                            // not existing, then set it
+
+                            if (!contains(key)) {
+                                edit().apply {
+                                    putLong(key, prefValue)
+                                    apply()
+                                }
+                            }
+
+                            // set the summary to the formatted value
+                            findPreference<Preference>(key)?.apply { summary = timeFormat.format(prefValue) }
+                        }
+                }
+            }
+        }
+
+        /**
+         * Tapping a time brings up a time picker dialog
+         */
+        override fun onPreferenceTreeClick(preference: Preference): Boolean {
+
+            //todo refactor this and the previous methods, and add the other time field
+
+            return when (preference.key) {
+                context!!.getString(R.string.auto_start_time_pref_key) -> {
+                    PreferenceManager.getDefaultSharedPreferences(context)
+                        .also{sharedPrefs ->
+                            with(sharedPrefs.getLong(preference.key, -1L)) {
+                                val hours = this / 1000L / 60L / 60L
+                                val minutes = (this / 1000L / 60L) - (hours * 60L)
+
+                                TimePickerDialog(context, { _, hour, minute ->              // listener for setting time
+                                    GregorianCalendar(TimeZone.getTimeZone("GMT"))
+                                        .onlyTimeMillis(hour, minute)
+                                        .also {
+                                            sharedPrefs.edit().apply {
+                                                putLong(preference.key, it)
+                                                apply()
+                                            }
+
+                                            val timeFormat = DateFormat.getTimeFormat(context).apply { timeZone = TimeZone.getTimeZone("GMT") }
+                                            preference.summary = timeFormat.format(it)
+                                        }
+                                }, hours.toInt(), minutes.toInt(), false).show()
+                            }
+
+                    }
+                    true
+                }
+                else -> super.onPreferenceTreeClick(preference)
+            }
+        }
+    }
+}
+
+fun GregorianCalendar.onlyTimeMillis(hours: Int, minutes: Int): Long {
+    clear()
+    set(Calendar.HOUR_OF_DAY, hours)
+    set(Calendar.MINUTE, minutes)
+    return timeInMillis
 }

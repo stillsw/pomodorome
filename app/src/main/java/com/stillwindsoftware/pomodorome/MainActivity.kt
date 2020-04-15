@@ -71,8 +71,8 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notifications(this).createNotificationChannel()
 
-        time_picker_circle.timerWidgets[TimePickerCircle.WORK].timePickerTextView = work_time
-        time_picker_circle.timerWidgets[TimePickerCircle.REST].timePickerTextView = rest_time
+        time_picker_circle.timerWidgets[TimerGui.WORK].timePickerTextView = work_time
+        time_picker_circle.timerWidgets[TimerGui.REST].timePickerTextView = rest_time
 
         playToPauseDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.play_to_pause_avd)!!
         pauseToPlayDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.pause_to_play_avd)!!
@@ -208,6 +208,9 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    /**
+     * Edit or stop depending on the current state, play/pause or edit
+     */
     fun editStopPressed(@Suppress("UNUSED_PARAMETER") view: View) {
 
         // choose edit... only allowed to edit from stopped
@@ -227,6 +230,13 @@ class MainActivity : AppCompatActivity() {
 
             viewModel.stop()
         }
+    }
+
+    /**
+     * Show the dialog for setting auto-start range
+     */
+    fun autoStartPressed(@Suppress("UNUSED_PARAMETER") view: View) {
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

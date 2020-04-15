@@ -14,7 +14,7 @@
         <attr name="boldSpanEndChar" format="integer" />
     </declare-styleable>
 
-    <declare-styleable name="TimePickerCircle">
+    <declare-styleable name="TimerGui">
         <attr name="workColour" format="color" />
         <attr name="restColour" format="color" />
         <attr name="elapsingColour" format="color" />

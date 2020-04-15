@@ -15,12 +15,11 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import androidx.annotation.HalfFloat
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.lifecycle.Observer
-import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.TICK_OVER
-import com.stillwindsoftware.pomodorome.TimePickerCircle.Companion.ticksSinceBlink
+import com.stillwindsoftware.pomodorome.TimerGui.Companion.TICK_OVER
+import com.stillwindsoftware.pomodorome.TimerGui.Companion.ticksSinceBlink
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
@@ -38,7 +37,7 @@ import kotlin.properties.Delegates
  *
  * Supporting classes which form part of this are underneath
  */
-class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
+class TimerGui : AppCompatImageView, View.OnTouchListener{
 
     constructor(context: Context) : super(context)
 
@@ -51,7 +50,7 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
     }
 
     companion object {
-        private const val LOG_TAG = "TimePickerCircle"
+        private const val LOG_TAG = "TimerGui"
         const val WORK = 0
         const val REST = 1
         private const val MINUTES = 60f
@@ -290,14 +289,14 @@ class TimePickerCircle : AppCompatImageView, View.OnTouchListener{
 
         shadowWidth = resources.getDimension(R.dimen.time_picker_background_shadow)
 
-        with(context.obtainStyledAttributes(attrs, R.styleable.TimePickerCircle, 0, 0)) {
-            timerWidgets[WORK].colour = getColor(R.styleable.TimePickerCircle_workColour, resources.getColor(R.color.colorAccent, null))
-            timerWidgets[REST].colour = getColor(R.styleable.TimePickerCircle_restColour, resources.getColor(R.color.colorAccent, null))
-            backgroundColour = getColor(R.styleable.TimePickerCircle_backgroundColour, resources.getColor(android.R.color.white, null))
-            divisionsBackgroundColour = getColor(R.styleable.TimePickerCircle_divisionsBackgroundColour, backgroundColour)
-            divisionsColour = getColor(R.styleable.TimePickerCircle_divisionsColour, resources.getColor(android.R.color.black, null))
-            bezelColour = getColor(R.styleable.TimePickerCircle_bezelColour, resources.getColor(android.R.color.black, null))
-            timeElapsingColour = getColor(R.styleable.TimePickerCircle_elapsingColour, backgroundColour)
+        with(context.obtainStyledAttributes(attrs, R.styleable.TimerGui, 0, 0)) {
+            timerWidgets[WORK].colour = getColor(R.styleable.TimerGui_workColour, resources.getColor(R.color.colorAccent, null))
+            timerWidgets[REST].colour = getColor(R.styleable.TimerGui_restColour, resources.getColor(R.color.colorAccent, null))
+            backgroundColour = getColor(R.styleable.TimerGui_backgroundColour, resources.getColor(android.R.color.white, null))
+            divisionsBackgroundColour = getColor(R.styleable.TimerGui_divisionsBackgroundColour, backgroundColour)
+            divisionsColour = getColor(R.styleable.TimerGui_divisionsColour, resources.getColor(android.R.color.black, null))
+            bezelColour = getColor(R.styleable.TimerGui_bezelColour, resources.getColor(android.R.color.black, null))
+            timeElapsingColour = getColor(R.styleable.TimerGui_elapsingColour, backgroundColour)
             recycle()
         }
 
