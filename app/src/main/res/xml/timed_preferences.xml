@@ -11,7 +11,7 @@
 
     <Preference
         app:key="@string/auto_start_time_pref_key"
-        app:title="@string/auto_time_title"
+        app:title="@string/auto_start_time_title"
         app:dependency="@string/auto_start_pref_key"
         />
 
@@ -23,8 +23,13 @@
 
     <Preference
         app:key="@string/auto_stop_time_pref_key"
-        app:title="@string/auto_time_title"
+        app:title="@string/auto_stop_time_title"
         app:dependency="@string/auto_stop_pref_key"
+        />
+
+    <MultiSelectListPreference
+        app:key="@string/auto_days_pref_key"
+        app:title="@string/auto_days_title"
         />
 
     </PreferenceCategory>

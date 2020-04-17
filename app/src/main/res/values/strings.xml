@@ -16,12 +16,15 @@
     <string name="ringtone_pref_title_REST">Begin Rest time</string>
     <string name="auto_start_stop_title">Auto Start/Stop</string>
     <string name="auto_start_pref_key" translatable="false">com.stillwindsoftware.pomodorome.enable_auto_start</string>
-    <string name="auto_start_title">Auto Start Timing</string>
+    <string name="auto_start_title">Start automatically</string>
     <string name="auto_start_time_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_start</string>
-    <string name="auto_time_title">Time</string>
+    <string name="auto_start_time_title">Start At</string>
     <string name="auto_stop_pref_key" translatable="false">com.stillwindsoftware.pomodorome.enable_auto_stop</string>
-    <string name="auto_stop_title">Auto Stop Timing</string>
+    <string name="auto_stop_title">Stop automatically</string>
     <string name="auto_stop_time_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_stop</string>
+    <string name="auto_stop_time_title">Stop At</string>
+    <string name="auto_days_title">Days of the Week</string>
+    <string name="auto_days_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_days</string>
 
     <string name="sounds_header">Alarm Sounds</string>
     <string name="timed_settings_header">Timing</string>

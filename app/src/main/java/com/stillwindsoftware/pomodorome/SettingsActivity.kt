@@ -1,21 +1,21 @@
 package com.stillwindsoftware.pomodorome
 
 import android.app.TimePickerDialog
-import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
 import android.text.format.DateFormat
-import android.util.AttributeSet
 import android.util.Log
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.*
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms
+import java.text.DateFormatSymbols
 import java.util.*
-import android.app.TimePickerDialog.OnTimeSetListener as OnTimeSetListener
+import kotlin.collections.HashSet
 
 /**
  * The settings activity plus the fragments that make up the individual screens
@@ -26,6 +26,7 @@ class SettingsActivity : AppCompatActivity(),
 
     companion object {
         private const val LOG_TAG = "SettingsActivity"
+        const val INTENT_EXTRA_DIRECT_TO_ALARMS = "com.stillwindsoftware.pomodorome.events.Alarms.INTENT_EXTRA_DIRECT_TO_ALARMS"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,15 +34,14 @@ class SettingsActivity : AppCompatActivity(),
         setContentView(R.layout.settings_activity)
         supportFragmentManager
             .beginTransaction()
-            .replace(R.id.settings, SettingsFragment())
+            .replace(R.id.settings, if (intent.hasExtra(INTENT_EXTRA_DIRECT_TO_ALARMS)) SettingsAutoStartFragment() else SettingsFragment())
             .commit()
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
     }
 
     override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat, pref: Preference): Boolean {
         val args = pref.extras
-        val fragment = supportFragmentManager.fragmentFactory.instantiate(classLoader,pref.fragment)
+        val fragment = supportFragmentManager.fragmentFactory.instantiate(classLoader, pref.fragment)
         fragment.arguments = args
         fragment.setTargetFragment(caller, 0)
         // Replace the existing Fragment with the new Fragment
@@ -172,43 +172,128 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     /**
-     * 2nd level fragment for just the settings related to auto-start of the app
+     * 2nd level fragment for just the settings related to auto-start timings of the app
      */
-    class SettingsAutoStartFragment : PreferenceFragmentCompat() {
+    class SettingsAutoStartFragment : PreferenceFragmentCompat(),
+        SharedPreferences.OnSharedPreferenceChangeListener {
+
+        /**
+         * Listen for changes to preferences, so can update the summary
+         * when days of the week changes
+         */
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+            PreferenceManager.getDefaultSharedPreferences(context!!).registerOnSharedPreferenceChangeListener(this)
+        }
+
+        override fun onDestroy() {
+            super.onDestroy()
+            PreferenceManager.getDefaultSharedPreferences(context!!).unregisterOnSharedPreferenceChangeListener(this)
+        }
+
+        /**
+         * The preference was cached when setting up, if it's there, then that fragment was loaded
+         * so check for it being changed to set the summary
+         */
+        override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
+
+            if (getString(R.string.auto_days_pref_key) == key) {
+
+                findPreference<MultiSelectListPreference>(key)
+                    ?.apply {
+
+                    // summary is list of short symbols, get the selected values
+                    // from the shared prefs not from the preference on the fragment
+                    // because after orientation change it doesn't work that way
+                    // see onCreatePreferences() next for more complete use
+                    // of MultiSelectListPreference entries/entryValues/values
+
+                    val stored = sharedPreferences.getStringSet(key, HashSet())
+
+                    summary = DateFormatSymbols(Locale.getDefault()).shortWeekdays
+                        .filterIndexed { index, _ -> stored!!.contains(index.toString()) }
+                        .joinToString(separator = "/")
+                }
+            }
+        }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+
             addPreferencesFromResource(R.xml.timed_preferences)
 
             val timeFormat = DateFormat.getTimeFormat(context).apply { timeZone = TimeZone.getTimeZone("GMT") }
 
             with(PreferenceManager.getDefaultSharedPreferences(context)) {
 
-                // the key is a string resource
+                // there are 2 preferences for start/stop times, each with a different default value
 
-                context!!.getString(R.string.auto_start_time_pref_key).also {key ->
+                for (keyResIdAndDefault in listOf(
+                    R.string.auto_start_time_pref_key to GregorianCalendar().onlyTimeMillis(9, 0),
+                    R.string.auto_stop_time_pref_key to GregorianCalendar().onlyTimeMillis(17, 0))) {
 
-                    Log.d(LOG_TAG, "key = $key")
+                        // try to get the preference, or default
 
-                    // try to get the preference, default to 9am
+                        val key = getString(keyResIdAndDefault.first)
 
-                    getLong(key, GregorianCalendar(TimeZone.getTimeZone("GMT")).onlyTimeMillis(9, 0))
-                        .also { prefValue ->
+                        getLong(key, keyResIdAndDefault.second)
+                            .also { prefValue ->
 
-                            Log.d(LOG_TAG, "key = $key value = $prefValue")
+                                Log.d(LOG_TAG, "key = $key value = $prefValue")
 
-                            // not existing, then set it
+                                // not existing, then set it
 
-                            if (!contains(key)) {
-                                edit().apply {
-                                    putLong(key, prefValue)
-                                    apply()
+                                if (!contains(key)) {
+                                    edit().apply {
+                                        putLong(key, prefValue)
+                                        apply()
+                                    }
+                                }
+
+                                // set the summary to the formatted value
+                                findPreference<Preference>(key)?.apply {
+                                    summary = timeFormat.format(prefValue)
                                 }
                             }
-
-                            // set the summary to the formatted value
-                            findPreference<Preference>(key)?.apply { summary = timeFormat.format(prefValue) }
-                        }
                 }
+
+                // weekdays is a multi-select preference
+
+                context!!.getString(R.string.auto_days_pref_key)
+                    .also {daysKey ->
+
+                        findPreference<MultiSelectListPreference>(daysKey)
+                            ?.apply {
+
+                                val symbols = DateFormatSymbols(Locale.getDefault())
+
+                                // days is an array of length 8, the first is blank
+                                entries = symbols.weekdays.filter { it.isNotEmpty() }.toTypedArray()
+                                entryValues = Array(7) { i -> (i + 1).toString() }
+
+                                // not existing, then set it
+
+                                if (!contains(daysKey)) {
+
+                                    // default to miss out the weekends
+
+                                    HashSet( Array(5) { i -> (i + Calendar.MONDAY).toString() }.toList() )
+                                        .also {
+                                            edit().apply {
+                                                putStringSet(daysKey, it)
+                                                apply()
+                                            }
+
+                                            values = it
+                                        }
+                                }
+
+                                // summary is list of short symbols
+
+                                summary = symbols.shortWeekdays
+                                    .filterIndexed { index, _ -> values.contains(index.toString()) }
+                                    .joinToString(separator = "/")
+                            }
+                    }
             }
         }
 
@@ -217,10 +302,9 @@ class SettingsActivity : AppCompatActivity(),
          */
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
 
-            //todo refactor this and the previous methods, and add the other time field
-
             return when (preference.key) {
-                context!!.getString(R.string.auto_start_time_pref_key) -> {
+                getString(R.string.auto_start_time_pref_key),
+                getString(R.string.auto_stop_time_pref_key) -> {
                     PreferenceManager.getDefaultSharedPreferences(context)
                         .also{sharedPrefs ->
                             with(sharedPrefs.getLong(preference.key, -1L)) {
@@ -228,7 +312,7 @@ class SettingsActivity : AppCompatActivity(),
                                 val minutes = (this / 1000L / 60L) - (hours * 60L)
 
                                 TimePickerDialog(context, { _, hour, minute ->              // listener for setting time
-                                    GregorianCalendar(TimeZone.getTimeZone("GMT"))
+                                    GregorianCalendar()
                                         .onlyTimeMillis(hour, minute)
                                         .also {
                                             sharedPrefs.edit().apply {
@@ -251,7 +335,12 @@ class SettingsActivity : AppCompatActivity(),
     }
 }
 
+/**
+ * Extension function sets the timezone to GMT and clears all times so only dealing with
+ * the hours and minutes passed
+ */
 fun GregorianCalendar.onlyTimeMillis(hours: Int, minutes: Int): Long {
+    timeZone = TimeZone.getTimeZone("GMT")
     clear()
     set(Calendar.HOUR_OF_DAY, hours)
     set(Calendar.MINUTE, minutes)

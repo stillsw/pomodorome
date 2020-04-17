@@ -236,7 +236,10 @@ class MainActivity : AppCompatActivity() {
      * Show the dialog for setting auto-start range
      */
     fun autoStartPressed(@Suppress("UNUSED_PARAMETER") view: View) {
-
+        startActivity(Intent(this, SettingsActivity::class.java)
+            .apply {
+                putExtra(SettingsActivity.INTENT_EXTRA_DIRECT_TO_ALARMS, 99)
+            })
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
