@@ -31,7 +31,7 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
-        <com.stillwindsoftware.pomodorome.TimerGui
+        <com.stillwindsoftware.pomodorome.customviews.TimerGui
             android:id="@+id/time_picker_circle"
             android:layout_width="0dp"
             android:layout_height="0dp"
@@ -69,7 +69,7 @@
              and calling invalidate(), there doesn't seem to be harm from match_parent
              now, but in future try to reset to wrap_content and test orientation changes
              work ok -->
-        <com.stillwindsoftware.pomodorome.TimePickerTextView
+        <com.stillwindsoftware.pomodorome.customviews.TimePickerTextView
             android:id="@+id/work_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -87,7 +87,7 @@
             app:layout_constraintRight_toRightOf="@id/time_picker_circle"
             />
 
-        <com.stillwindsoftware.pomodorome.TimePickerTextView
+        <com.stillwindsoftware.pomodorome.customviews.TimePickerTextView
             android:id="@+id/rest_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

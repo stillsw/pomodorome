@@ -13,6 +13,7 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
+import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
 import com.stillwindsoftware.pomodorome.db.TimerType
@@ -183,7 +184,8 @@ class MainActivity : AppCompatActivity() {
     private fun timerExpiredWhileTicking(timerType: TimerType) {
         //todo add vibrate and prompting etc
         MainScope().launch {
-            alarms.playAlarmSound(timerType)
+
+            alarms.playAlarm(timerType)
         }
     }
 

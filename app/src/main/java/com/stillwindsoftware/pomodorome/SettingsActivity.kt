@@ -52,6 +52,24 @@ class SettingsActivity : AppCompatActivity(),
         return true
     }
 
+    fun showRemindersList(caller: PreferenceFragmentCompat) {
+        RemindersListFragment().apply {
+//            setTargetFragment(caller, 0)
+            supportFragmentManager.beginTransaction().also { transaction ->
+                supportFragmentManager.findFragmentByTag("remindersList")?.let {
+                    transaction.remove(it)
+                }
+
+                transaction.addToBackStack(null)
+                show(transaction, "remindersList")
+            }
+//
+////                .replace(R.id.settings, this)
+//                .addToBackStack(null)
+//                .commit()
+        }
+    }
+
     /**
      * Up button would take us to the parent activity (main) every time, but when
      * in a sub fragment don't want that, just pop it
@@ -77,7 +95,7 @@ class SettingsActivity : AppCompatActivity(),
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             addPreferencesFromResource(R.xml.root_preferences)
 
-            Alarms(context!!).also { alarms ->
+            Alarms(requireContext()).also { alarms ->
 
                 for (timerType in TimerType.values()) {
                     findPreference<Preference>(timerType.ringToneKey)?.let { pref ->
@@ -92,8 +110,6 @@ class SettingsActivity : AppCompatActivity(),
                 }
             }
         }
-
-        //todo add other prefs
 
         /**
          * Tapping a ringtone preference brings up the system picker, the result is evaluated below in onActivityResult()
@@ -111,7 +127,7 @@ class SettingsActivity : AppCompatActivity(),
                                  putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
                                  putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
 
-                                 Alarms(context!!).getPreferredRingtoneUri(timerType)?.let {ringtoneUri ->
+                                 Alarms(requireContext()).getPreferredRingtoneUri(timerType)?.let {ringtoneUri ->
                                      Log.d(LOG_TAG, "onPreferenceTreeClick: found existing = $ringtoneUri")
                                      putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtoneUri)
 
@@ -183,12 +199,12 @@ class SettingsActivity : AppCompatActivity(),
          */
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
-            PreferenceManager.getDefaultSharedPreferences(context!!).registerOnSharedPreferenceChangeListener(this)
+            PreferenceManager.getDefaultSharedPreferences(requireContext()).registerOnSharedPreferenceChangeListener(this)
         }
 
         override fun onDestroy() {
             super.onDestroy()
-            PreferenceManager.getDefaultSharedPreferences(context!!).unregisterOnSharedPreferenceChangeListener(this)
+            PreferenceManager.getDefaultSharedPreferences(requireContext()).unregisterOnSharedPreferenceChangeListener(this)
         }
 
         /**
@@ -258,7 +274,7 @@ class SettingsActivity : AppCompatActivity(),
 
                 // weekdays is a multi-select preference
 
-                context!!.getString(R.string.auto_days_pref_key)
+                requireContext().getString(R.string.auto_days_pref_key)
                     .also {daysKey ->
 
                         findPreference<MultiSelectListPreference>(daysKey)
@@ -332,6 +348,29 @@ class SettingsActivity : AppCompatActivity(),
                 else -> super.onPreferenceTreeClick(preference)
             }
         }
+    }
+
+    /**
+     * 2nd level fragment for just the settings related to rest time reminders
+     */
+    class SettingsRemindersFragment : PreferenceFragmentCompat() {
+
+        override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            setPreferencesFromResource(R.xml.reminders_preferences, rootKey)
+        }
+
+        override fun onPreferenceTreeClick(preference: Preference): Boolean {
+
+            return when (preference.key) {
+                getString(R.string.showReminders_list_pref_key) -> {
+//                    startActivity(Intent(context, RemindersActivity::class.java))
+                    (activity as SettingsActivity).showRemindersList(this)
+                    true
+                }
+                else -> super.onPreferenceTreeClick(preference)
+            }
+        }
+
     }
 }
 

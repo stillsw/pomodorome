@@ -1,0 +1,29 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="@string/reminders_title">
+
+        <SwitchPreferenceCompat
+            app:key="@string/showReminders_pref_key"
+            app:title="@string/show_reminders_title"
+            app:defaultValue="true"
+            />
+
+
+        <Preference
+            app:key="@string/showReminders_list_pref_key"
+            app:title="@string/show_reminders_list_title"
+            app:dependency="@string/showReminders_pref_key"
+            />
+
+        <SwitchPreferenceCompat
+            app:key="@string/showReminders_random_pref_key"
+            app:title="@string/show_reminders_order_title"
+            app:summaryOn="@string/show_reminders_cycle_title"
+            app:summaryOff="@string/show_reminders_random_title"
+            app:defaultValue="true"
+            />
+
+    </PreferenceCategory>
+
+
+</PreferenceScreen>

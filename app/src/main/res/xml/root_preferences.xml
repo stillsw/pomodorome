@@ -1,15 +1,31 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="@string/sounds_header">
+    <PreferenceCategory app:title="@string/alerts_header">
+
+        <SwitchPreferenceCompat
+            app:key="@string/play_sounds_pref_key"
+            app:title="@string/alerts_play_sounds"
+            app:defaultValue="true"
+            />
 
         <!-- NOTE: the keys to these 2 should not be changed, they have to match TimerType -->
         <androidx.preference.Preference
             app:key="com.stillwindsoftware.pomodorome.ringtone.POMODORO"
-            app:title="@string/ringtone_pref_title_POMODORO"/>
+            app:title="@string/ringtone_pref_title_POMODORO"
+            app:dependency="@string/play_sounds_pref_key"
+            />
 
         <androidx.preference.Preference
             app:key="com.stillwindsoftware.pomodorome.ringtone.REST"
-            app:title="@string/ringtone_pref_title_REST"/>
+            app:title="@string/ringtone_pref_title_REST"
+            app:dependency="@string/play_sounds_pref_key"
+            />
+
+        <SwitchPreferenceCompat
+            app:key="@string/vibrate_pref_key"
+            app:title="@string/alerts_vibrate"
+            app:defaultValue="false"
+            />
 
     </PreferenceCategory>
 
@@ -19,34 +35,15 @@
             app:title="@string/auto_start_stop_title"
             app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsAutoStartFragment" />
 
+        <Preference
+            app:title="@string/reminders_title"
+            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsRemindersFragment" />
+
+        <SwitchPreferenceCompat
+            app:key="@string/keepScreenAwake_pref_key"
+            app:title="@string/settingsKeep_screen_awake_while_active_label"
+            app:defaultValue="true"/>
+
     </PreferenceCategory>
-
-    <SwitchPreferenceCompat
-        app:key="@string/keepScreenAwake_pref_key"
-        app:title="@string/settingsKeep_screen_awake_while_active_label"
-        app:defaultValue="true"/>
-
-        <!--EditTextPreference
-            app:key="signature"
-            app:title="@string/signature_title"
-            app:useSimpleSummaryProvider="true" />
-
-        <SwitchPreferenceCompat
-            app:key="sync"
-            app:title="@string/sync_title" />
-
-        <SwitchPreferenceCompat
-            app:dependency="sync"
-            app:key="attachment"
-            app:summaryOff="@string/attachment_summary_off"
-            app:summaryOn="@string/attachment_summary_on"
-            app:title="@string/attachment_title" />
-        <ListPreference
-            app:defaultValue="reply"
-            app:entries="@array/reply_entries"
-            app:entryValues="@array/reply_values"
-            app:key="reply"
-            app:title="@string/reply_title"
-            app:useSimpleSummaryProvider="true" /-->
 
 </PreferenceScreen>

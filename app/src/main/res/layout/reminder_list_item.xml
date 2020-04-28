@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+        <variable
+            name="reminder"
+            type="com.stillwindsoftware.pomodorome.db.Reminder"/>
+        <variable
+            name="clickListener"
+            type="com.stillwindsoftware.pomodorome.viewmodels.RemindersClickListener" />
+    </data>
+
+    <com.stillwindsoftware.pomodorome.customviews.SwipeDeleteCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="2dp"
+        app:cardElevation="2dp"
+        app:cardUseCompatPadding="true">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <androidx.emoji.widget.EmojiAppCompatTextView
+                android:id="@+id/reminder_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceListItem"
+                android:layout_marginStart="@dimen/normal_margin"
+                android:layout_marginEnd="@dimen/reminders_list_margin_text_end"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:text="@{reminder.text}"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:gravity="start"
+                />
+
+            <androidx.appcompat.widget.AppCompatCheckBox
+                android:id="@+id/selected"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|start"
+                android:layout_marginEnd="@dimen/fab_margin_less"
+                android:checked="@{reminder.selected}"
+                android:onClick="@{() -> clickListener.onSelectionClicked(reminder)}"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBaseline_toBaselineOf="@id/reminder_text" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.stillwindsoftware.pomodorome.customviews.SwipeDeleteCardView>
+</layout>

@@ -5,10 +5,15 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Context.ALARM_SERVICE
+import android.content.Context.VIBRATOR_SERVICE
 import android.content.Intent
+import android.content.SharedPreferences
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
@@ -106,44 +111,69 @@ class Alarms(private val context: Context) {
     /**
      * Timer has expired, play the relevant sound if set, and vibrate if set
      */
-    suspend fun playAlarmSound(timerType: TimerType) {
+    suspend fun playAlarm(timerType: TimerType) {
 
-        try {
-            getPreferredRingtoneUri(timerType)?.let {uri ->
-                RingtoneManager.getRingtone(context, uri)?.also {ringtone ->
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .also { sharedPreferences ->
 
-                    withContext(Dispatchers.IO) {
+                // does preference say ok to vibrate? (this one defaults to false)
+                // do this first because don't want to wait for the sound to play first
 
-                        // play it as media, so user has better volume controls
-                        MediaPlayer.create(context, uri).apply {
-                            start()
-                            val playLen = if (duration > 0) duration.toLong() else ALARM_SOUND_MILLIS
-                            // delay is called on the coroutine scope
-                            Log.d(LOG_TAG, "playAlarmSound: playing ringtone ${ringtone.getTitle(context)} for $timerType in coroutine stop after=$playLen")
-                            delay(playLen)
-                            stop()
+                if (sharedPreferences.getBoolean(context.getString(R.string.vibrate_pref_key), false)) {
+
+                    (context.getSystemService(VIBRATOR_SERVICE) as Vibrator)
+                        .also {
+                            if (Build.VERSION.SDK_INT >= 26) {
+                                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE));
+                            }
+                            else {
+                                @Suppress("DEPRECATION")
+                                it.vibrate(200)
+                            }
                         }
+                }
+
+                // does preference say ok to play sound?
+
+                if (sharedPreferences.getBoolean(context.getString(R.string.play_sounds_pref_key), true)) {
+
+                    try {
+                        getPreferredRingtoneUri(timerType, sharedPreferences)?.let {uri ->
+                            RingtoneManager.getRingtone(context, uri)?.also {ringtone ->
+
+                                withContext(Dispatchers.IO) {
+
+                                    // play it as media, so user has better volume controls
+                                    MediaPlayer.create(context, uri).apply {
+                                        start()
+                                        val playLen = if (duration > 0) duration.toLong() else ALARM_SOUND_MILLIS
+                                        // delay is called on the coroutine scope
+                                        Log.d(LOG_TAG, "playAlarmSound: playing ringtone ${ringtone.getTitle(context)} for $timerType in coroutine stop after=$playLen")
+                                        delay(playLen)
+                                        stop()
+                                    }
+                                }
+
+                            } ?: Log.w(LOG_TAG, "playAlarmSound: alarm not played, failed to load a ringtone for the uri ($uri)")
+
+                        } ?: Log.w(LOG_TAG, "playAlarmSound: alarm not played, failed to get a ringtone uri")
                     }
-
-                } ?: Log.w(LOG_TAG, "playAlarmSound: alarm not played, failed to load a ringtone for the uri ($uri)")
-
-            } ?: Log.w(LOG_TAG, "playAlarmSound: alarm not played, failed to get a ringtone uri")
-
-        }
-        catch (e: Exception) {
-            Log.e(LOG_TAG, "playAlarmSound: alarm not sent, could not load a ringtone", e)
-        }
+                    catch (e: Exception) {
+                        Log.e(LOG_TAG, "playAlarmSound: alarm not sent, could not load a ringtone", e)
+                    }
+                }
+            }
     }
 
     /**
      * return the uri stored for the preference if there is one and if not
      * try to get the default ringtone, failing that, the application default
      */
-    internal fun getPreferredRingtoneUri(timerType: TimerType): Uri? {
+    internal fun getPreferredRingtoneUri(timerType: TimerType, sharedPreferences: SharedPreferences? = null): Uri? {
 
-        PreferenceManager.getDefaultSharedPreferences(context)
-            .also { sharedPreferences ->
-                sharedPreferences.getString(timerType.ringToneKey, null)?.let {
+        (sharedPreferences ?: PreferenceManager.getDefaultSharedPreferences(context))
+            .also { sharedPrefs ->
+                sharedPrefs.getString(timerType.ringToneKey, null)?.let {
                     Log.d(LOG_TAG, "getPreferredRingtoneUri: found existing = $it")
                     return Uri.parse(it)
                 }
@@ -187,7 +217,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 MainScope().launch {
                     Alarms(context).apply {
-                        playAlarmSound(timerType)
+                        playAlarm(timerType)
 
                         withTimerIOThread(context) {
                             Log.d(LOG_TAG, "onReceive: setup next background alarm: timer=${it}")

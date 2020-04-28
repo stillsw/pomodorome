@@ -11,34 +11,55 @@
     <!-- Preferences -->
     <string name="title_activity_settings">Settings</string>
     <string name="settingsKeep_screen_awake_while_active_label">Keep screen on while timing</string>
-    <string name="keepScreenAwake_pref_key" translatable="false">com.stillwindsoftware.pomodorome.keep_awake</string>
-    <string name="ringtone_pref_title_POMODORO">Begin Pomodoro time</string>
-    <string name="ringtone_pref_title_REST">Begin Rest time</string>
-    <string name="auto_start_stop_title">Auto Start/Stop</string>
-    <string name="auto_start_pref_key" translatable="false">com.stillwindsoftware.pomodorome.enable_auto_start</string>
-    <string name="auto_start_title">Start automatically</string>
-    <string name="auto_start_time_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_start</string>
-    <string name="auto_start_time_title">Start At</string>
-    <string name="auto_stop_pref_key" translatable="false">com.stillwindsoftware.pomodorome.enable_auto_stop</string>
-    <string name="auto_stop_title">Stop automatically</string>
-    <string name="auto_stop_time_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_stop</string>
-    <string name="auto_stop_time_title">Stop At</string>
-    <string name="auto_days_title">Days of the Week</string>
-    <string name="auto_days_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_days</string>
 
-    <string name="sounds_header">Alarm Sounds</string>
     <string name="timed_settings_header">Timing</string>
+    <string name="auto_start_stop_title">Auto Start/Stop</string>
+    <string name="auto_start_title">Start automatically</string>
+    <string name="auto_start_time_title">Start at</string>
+    <string name="auto_stop_title">Stop automatically</string>
+    <string name="auto_stop_time_title">Stop at</string>
+    <string name="auto_days_title">Days of the week</string>
 
-    <!-- Messages Preferences -->
-    <string name="signature_title">Your signature</string>
-    <string name="reply_title">Default reply action</string>
+    <string name="alerts_header">When Time Period Begins</string>
+    <string name="alerts_play_sounds">Play ringtones</string>
+    <string name="alerts_vibrate">Vibrate</string>
+    <string name="ringtone_pref_title_POMODORO">Pomodoro time</string>
+    <string name="ringtone_pref_title_REST">Rest time</string>
 
-    <!-- Sync Preferences -->
-    <string name="sync_title">Sync email periodically</string>
-    <string name="attachment_title">Download incoming attachments</string>
-    <string name="attachment_summary_on">Automatically download attachments for incoming emails
-    </string>
-    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <string name="reminders_title">Rest Time Reminders</string>
+    <string name="show_reminders_title">Show in Rest time</string>
+    <string name="show_reminders_order_title">Display sequence</string>
+    <string name="show_reminders_cycle_title">In order</string>
+    <string name="show_reminders_random_title">Random</string>
+    <string name="show_reminders_list_title">Reminders list</string>
+    <string name="reminders_new_prompt">New Reminder</string>
+    <string name="delete_reminder">Reminder deleted</string>
+    <string name="undo_delete_reminder">Undo</string>
+
+
+    <string-array name="default_reminders">
+        <item>Have a break</item>
+        <item>Move your body</item>
+        <item>Do some exercise</item>
+        <item>Go outside</item>
+        <item>Be present</item>
+        <item>Do something fun</item>
+        <item>Rest your eyes</item>
+    </string-array>
+
+
+    <!-- Keys to Preferences -->
+    <string name="keepScreenAwake_pref_key" translatable="false">com.stillwindsoftware.pomodorome.keep_awake</string>
+    <string name="auto_stop_time_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_stop</string>
+    <string name="auto_stop_pref_key" translatable="false">com.stillwindsoftware.pomodorome.enable_auto_stop</string>
+    <string name="auto_start_time_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_start</string>
+    <string name="auto_start_pref_key" translatable="false">com.stillwindsoftware.pomodorome.enable_auto_start</string>
+    <string name="auto_days_pref_key" translatable="false">com.stillwindsoftware.pomodorome.auto_days</string>
+    <string name="play_sounds_pref_key" translatable="false">com.stillwindsoftware.pomodorome.play_sounds</string>
+    <string name="vibrate_pref_key" translatable="false">com.stillwindsoftware.pomodorome.vibrate</string>
+    <string name="showReminders_pref_key" translatable="false">com.stillwindsoftware.pomodorome.show_reminders</string>
+    <string name="showReminders_random_pref_key" translatable="false">com.stillwindsoftware.pomodorome.random_reminders</string>
+    <string name="showReminders_list_pref_key" translatable="false">com.stillwindsoftware.pomodorome.list_reminders</string>
 
     <!-- 🧑🏽‍🎓  -->
 </resources>

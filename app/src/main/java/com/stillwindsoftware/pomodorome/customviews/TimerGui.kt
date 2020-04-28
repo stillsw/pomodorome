@@ -1,4 +1,4 @@
-package com.stillwindsoftware.pomodorome
+package com.stillwindsoftware.pomodorome.customviews
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -18,8 +18,10 @@ import android.view.View
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.lifecycle.Observer
-import com.stillwindsoftware.pomodorome.TimerGui.Companion.TICK_OVER
-import com.stillwindsoftware.pomodorome.TimerGui.Companion.ticksSinceBlink
+import com.stillwindsoftware.pomodorome.MainActivity
+import com.stillwindsoftware.pomodorome.R
+import com.stillwindsoftware.pomodorome.customviews.TimerGui.Companion.TICK_OVER
+import com.stillwindsoftware.pomodorome.customviews.TimerGui.Companion.ticksSinceBlink
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase.Companion.ONE_MINUTE
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
@@ -91,7 +93,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
     private var thumbRingCircumference = 0f
     private var thumbOverlapDegreesShift = 0f           // the amount to shift thumbs on their ring around the circle when overlapping
     private val divisionsPoints = FloatArray(240)  // drawn points for lines at the minutes
-    private var currentInput = WORK
+    private var currentInput =
+        WORK
     private var isEditing = false                       // cache the timer state so drawing has a bit less overhead
     private var isRunning = false
     private var isTransitionEditing = false             // darken colours in the middle while in transition
@@ -129,7 +132,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         private var timeInMillis = 0L
         private var thumbDegrees = 0f
         var minutesDrawnSweepAngle = -1f
-        var minutesDrawnSweepAngleStart = TWELVE_O_CLOCK // only rest resets this
+        var minutesDrawnSweepAngleStart =
+            TWELVE_O_CLOCK // only rest resets this
         var colour = 0
         var darkenedColor = 0
         var transitionColour = FloatArray(3)    // see transitionColour()
@@ -289,9 +293,14 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
         shadowWidth = resources.getDimension(R.dimen.time_picker_background_shadow)
 
-        with(context.obtainStyledAttributes(attrs, R.styleable.TimerGui, 0, 0)) {
-            timerWidgets[WORK].colour = getColor(R.styleable.TimerGui_workColour, resources.getColor(R.color.colorAccent, null))
-            timerWidgets[REST].colour = getColor(R.styleable.TimerGui_restColour, resources.getColor(R.color.colorAccent, null))
+        with(context.obtainStyledAttributes(attrs,
+            R.styleable.TimerGui, 0, 0)) {
+            timerWidgets[WORK].colour = getColor(
+                R.styleable.TimerGui_workColour, resources.getColor(
+                    R.color.colorAccent, null))
+            timerWidgets[REST].colour = getColor(
+                R.styleable.TimerGui_restColour, resources.getColor(
+                    R.color.colorAccent, null))
             backgroundColour = getColor(R.styleable.TimerGui_backgroundColour, resources.getColor(android.R.color.white, null))
             divisionsBackgroundColour = getColor(R.styleable.TimerGui_divisionsBackgroundColour, backgroundColour)
             divisionsColour = getColor(R.styleable.TimerGui_divisionsColour, resources.getColor(android.R.color.black, null))
@@ -301,10 +310,13 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         }
 
         thumbColour = resources.getColor(R.color.colorAccent, null)
-        timerWidgets[WORK].darkenedColor = transitionColour(timerWidgets[WORK], EDIT_STATE_DARKENED_RATIO, darken = true)
-        timerWidgets[REST].darkenedColor = transitionColour(timerWidgets[REST], EDIT_STATE_DARKENED_RATIO, darken = true)
+        timerWidgets[WORK].darkenedColor = transitionColour(timerWidgets[WORK],
+            EDIT_STATE_DARKENED_RATIO, darken = true)
+        timerWidgets[REST].darkenedColor = transitionColour(timerWidgets[REST],
+            EDIT_STATE_DARKENED_RATIO, darken = true)
 
-        Log.v(LOG_TAG, "init: colours work=${Integer.toHexString(timerWidgets[WORK].colour)} darkened=${Integer.toHexString(timerWidgets[WORK].darkenedColor)}" +
+        Log.v(
+            LOG_TAG, "init: colours work=${Integer.toHexString(timerWidgets[WORK].colour)} darkened=${Integer.toHexString(timerWidgets[WORK].darkenedColor)}" +
                 " rest=${Integer.toHexString(timerWidgets[REST].colour)} darkened=${Integer.toHexString(timerWidgets[REST].darkenedColor)}")
 
         clockBackgrd = resources.getDrawable(R.drawable.ic_timer_background, null)
@@ -452,15 +464,18 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         if (restEndMinutes > 60 && minutesOnTouchDown <= restEndMinutes % 60
             || (minutesOnTouchDown >= timerWidgets[WORK].minutes
                     && minutesOnTouchDown <= restEndMinutes)) {
-            currentInput = REST
+            currentInput =
+                REST
             Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of rest")
         }
         else if (minutesOnTouchDown <= timerWidgets[WORK].minutes) {        // not in range of rest, range of work is simple test
-            currentInput = WORK
+            currentInput =
+                WORK
             Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of work")
         }
         else if (timerWidgets[REST].minutes == 0) {                         // over top of each other, choose rest
-            currentInput = REST
+            currentInput =
+                REST
             Log.d(LOG_TAG, "allocateTouchToTimer: choose rest cos one over the other")
         }
         else {                                                              // neither work nor rest range, so it's somewhere in the white space, just go for nearer
@@ -525,7 +540,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             // so use the same rects
 
             paint.color = timerWidgets[WORK].colour
-            canvas.drawArc(minutesOuterRingRect, TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
+            canvas.drawArc(minutesOuterRingRect,
+                TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
 
             if (minutesElapsedDrawnSweepAngle > timerWidgets[WORK].minutesDrawnSweepAngle) {
                 paint.color = timerWidgets[REST].colour
@@ -800,7 +816,8 @@ class TimePickerTextView : AppCompatTextView {
     private var lastText = ""
 
     private fun init(attrs: AttributeSet) {
-        with(context.obtainStyledAttributes(attrs, R.styleable.TimePickerTextView, 0, 0)) {
+        with(context.obtainStyledAttributes(attrs,
+            R.styleable.TimePickerTextView, 0, 0)) {
             isMixedTypeface = getBoolean(R.styleable.TimePickerTextView_supportPartBoldFontStyle,false)
             boldTextBeginAtChar = getInteger(R.styleable.TimePickerTextView_boldSpanBeginChar, -1)
             boldTextEndAtChar = getInteger(R.styleable.TimePickerTextView_boldSpanEndChar, -1)
@@ -813,7 +830,11 @@ class TimePickerTextView : AppCompatTextView {
                 recycle()
 
                 Log.v(LOG_TAG, "init: isMixedTypeFace font family=$fontFamily (text=$text)")
-                boldTypefaceSpan = CustomTypefaceSpan(fontFamily, Typeface.create(fontFamily, Typeface.BOLD))
+                boldTypefaceSpan =
+                    CustomTypefaceSpan(
+                        fontFamily,
+                        Typeface.create(fontFamily, Typeface.BOLD)
+                    )
             }
         }
     }
