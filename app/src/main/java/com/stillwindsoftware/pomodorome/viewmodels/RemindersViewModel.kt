@@ -2,7 +2,6 @@ package com.stillwindsoftware.pomodorome.viewmodels
 
 import android.app.Application
 import android.graphics.RectF
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.cardview.widget.CardView
@@ -11,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.stillwindsoftware.pomodorome.ReminderDeleteButtonState
+import com.stillwindsoftware.pomodorome.ReminderDeleteIconState
 import com.stillwindsoftware.pomodorome.databinding.ReminderListItemBinding
 import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase
 import com.stillwindsoftware.pomodorome.db.Reminder
@@ -62,8 +61,7 @@ class RemindersItemViewHolder private constructor(val binding: ReminderListItemB
 
     var backgroundRect = RectF()
     var buttonRect = RectF()
-    var swipeBack = false
-    internal var buttonState = ReminderDeleteButtonState.GONE
+    internal var buttonState = ReminderDeleteIconState.GONE
 
     companion object {
         fun from(parent: ViewGroup): RemindersItemViewHolder {
@@ -74,7 +72,7 @@ class RemindersItemViewHolder private constructor(val binding: ReminderListItemB
     }
 
     fun bind(item: Reminder, clickListener: RemindersClickListener) {
-        buttonState = ReminderDeleteButtonState.GONE
+        buttonState = ReminderDeleteIconState.GONE
         binding.reminder = item
         binding.clickListener = clickListener
         binding.executePendingBindings()
@@ -86,13 +84,11 @@ class RemindersItemViewHolder private constructor(val binding: ReminderListItemB
             (cardView.right - cardView.paddingRight).toFloat(),
             (cardView.bottom - cardView.paddingBottom).toFloat())
 
-        buttonRect.set(if (dX < 0f || buttonState == ReminderDeleteButtonState.RIGHT_VISIBLE) backgroundRect.right - backgroundRect.height() else backgroundRect.left,
+        buttonRect.set(if (dX < 0f || buttonState == ReminderDeleteIconState.RIGHT_VISIBLE) backgroundRect.right - backgroundRect.height() else backgroundRect.left,
             backgroundRect.top,
-            if (dX < 0f || buttonState == ReminderDeleteButtonState.RIGHT_VISIBLE) backgroundRect.right else backgroundRect.left + backgroundRect.height(),
+            if (dX < 0f || buttonState == ReminderDeleteIconState.RIGHT_VISIBLE) backgroundRect.right else backgroundRect.left + backgroundRect.height(),
             backgroundRect.bottom)
-
     }
-
 }
 
 /**
@@ -125,15 +121,10 @@ class RemindersDiffCallback : DiffUtil.ItemCallback<Reminder>() {
 
 }
 
-enum class ReminderClickType() {
-    Selection, Deletion
-}
-
 /**
  * Listen for click on selection and also on delete button
  * The reminders list fragment handles the clicks by calling the view model (above)
  */
-class RemindersClickListener(val clickListener: (reminder: Reminder, ReminderClickType) -> Unit) {
-    fun onSelectionClicked(reminder: Reminder) = clickListener(reminder, ReminderClickType.Selection)
-    fun onDeleteClicked(reminder: Reminder) = clickListener(reminder, ReminderClickType.Deletion)
+class RemindersClickListener(val clickListener: (reminder: Reminder) -> Unit) {
+    fun onSelectionClicked(reminder: Reminder) = clickListener(reminder)
 }

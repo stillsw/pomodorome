@@ -12,7 +12,7 @@
             type="com.stillwindsoftware.pomodorome.viewmodels.RemindersClickListener" />
     </data>
 
-    <com.stillwindsoftware.pomodorome.customviews.SwipeDeleteCardView
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:cardCornerRadius="2dp"
@@ -53,5 +53,5 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-    </com.stillwindsoftware.pomodorome.customviews.SwipeDeleteCardView>
+    </androidx.cardview.widget.CardView>
 </layout>

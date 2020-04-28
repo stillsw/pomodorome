@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.DialogInterface
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.text.Editable
@@ -17,8 +16,6 @@ import android.util.Log
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.widget.AppCompatTextView
 import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -31,12 +28,10 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.RecyclerView.ItemDecoration
 import com.google.android.material.snackbar.Snackbar
 import com.stillwindsoftware.pomodorome.RemindersListFragment.Companion.LOG_TAG
 import com.stillwindsoftware.pomodorome.databinding.RemindersListBinding
 import com.stillwindsoftware.pomodorome.viewmodels.*
-import kotlinx.android.synthetic.main.reminder_list_item.*
 import kotlinx.android.synthetic.main.reminders_list.*
 import kotlin.math.abs
 import kotlin.math.min
@@ -57,10 +52,10 @@ class RemindersListFragment : DialogFragment() {
     // shows nothing at all when it goes over that, which is worse still
     // instead in onViewCreated() addOnLayoutChangeListener determines the exact size to make the dialog
 
-    var isSingleRowHeightConfirmed = false
-    var singleReminderRowHeight = 0
-    var maxDialogHeight = 0
-    var maxRecyclerSpace = 0 // set first time layout changes, since begin with match parent, this dictates the min that should always be allowed for
+    private var isSingleRowHeightConfirmed = false
+    private var singleReminderRowHeight = 0
+    private var maxDialogHeight = 0
+    private var maxRecyclerSpace = 0 // set first time layout changes, since begin with match parent, this dictates the min that should always be allowed for
 
     /**
      * Set the style to show a title
@@ -80,35 +75,25 @@ class RemindersListFragment : DialogFragment() {
             .apply {
                 lifecycleOwner = this@RemindersListFragment
                 viewmodel = viewModel
-                recyclerView.adapter = RemindersAdapter(RemindersClickListener { reminder, clickType ->
-                    if (clickType == ReminderClickType.Selection) {
-                        viewModel.toggleSelection(reminder = reminder)
-                    }
-                    else {
-                        Toast.makeText(requireContext(), "reminder delete ${reminder.text} clicked, still gotta implement that", Toast.LENGTH_LONG).show()
-                    }
+                recyclerView.adapter = RemindersAdapter(RemindersClickListener { reminder ->
+                    viewModel.toggleSelection(reminder = reminder)
                 })
 
                 viewModel.reminders.observe(requireActivity(), Observer {
                     it?.let { (recyclerView.adapter as RemindersAdapter).submitList(it) }
                 })
 
-                okButton.setOnClickListener() {
+                okButton.setOnClickListener {
                     dismiss()
                 }
 
-                addButton.setOnClickListener() {
+                addButton.setOnClickListener {
                     showAddNewReminderDialog()
                 }
 
-                // add gesture detection to the list for swipe and reveal delete button
+                // add gesture detection to the list for swipe and reveal delete icon
 
-                SwipeToRevealCallback(requireContext(), this@RemindersListFragment, recyclerView, (recyclerView.adapter as RemindersAdapter)).also {
-                    recyclerView.addItemDecoration(object : ItemDecoration() {
-                        override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
-                            it.onDraw(c)
-                        }
-                    })
+                SwipeToRevealCallback(requireContext(), this@RemindersListFragment).also {
                     ItemTouchHelper(it).apply { attachToRecyclerView(recyclerView) }
                 }
 
@@ -153,7 +138,7 @@ class RemindersListFragment : DialogFragment() {
         // it's because the view has shrunk (it happens when layout is wrap_content but there
         // are more rows than can be displayed)
 
-        view.addOnLayoutChangeListener() { _, _, _, _, _, _, _, _, _ ->
+        view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
 
             viewModel.reminders.value?.let {rems ->
 
@@ -222,7 +207,7 @@ class RemindersListFragment : DialogFragment() {
 
                     .apply {
                         setCanceledOnTouchOutside(false) // make buttons only way to get out (or back)
-                        setOnDismissListener() {
+                        setOnDismissListener {
 
                             // hide the keyboard shown automatically
 
@@ -280,17 +265,12 @@ class RemindersListFragment : DialogFragment() {
 /**
  * Thanks to Zachery Osborn, post shows how to swipe to delete
  * https://medium.com/@zackcosborn/step-by-step-recyclerview-swipe-to-delete-and-undo-7bbae1fce27e
- *
- * And to FanFataL, takes it a bit further to make a clickable delete button (actually this example gives 2 buttons, one each end)
- * https://github.com/FanFataL/swipe-controller-demo/blob/master/app/src/main/java/pl/fanfatal/swipecontrollerdemo/SwipeController.java
- * Blogged here:
- * https://codeburst.io/android-swipe-menu-with-recyclerview-8f28a235ff28
  */
-class SwipeToRevealCallback(val context: Context, val fragment: RemindersListFragment, val recyclerView: RecyclerView, val adapter: RemindersAdapter) : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+class SwipeToRevealCallback(val context: Context, private val fragment: RemindersListFragment)
+    : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
 
     private val icon = ContextCompat.getDrawable(context, R.drawable.ic_delete)!!
     private val background = ColorDrawable(Color.RED)
-    private val paint = Paint().apply { color = Color.RED }
 
     override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
 
@@ -319,48 +299,6 @@ class SwipeToRevealCallback(val context: Context, val fragment: RemindersListFra
                     }
                 .show()
                 }
-        }
-    }
-
-    /**
-     * called on the RecyclerView's item decoration (see fragment onCreateView() above)
-     * currentItemViewHolder is set in onChildDraw()
-     */
-    fun onDraw(c: Canvas) {
-        applyToHolders {
-            if (it.buttonState != ReminderDeleteButtonState.GONE) {
-                drawButton(c, it)
-            }
-        }
-    }
-
-    /**
-     * For when have to do something to all currently used view holders
-     * Pass lambda
-     */
-    private fun applyToHolders(func: (viewHolder: RemindersItemViewHolder) -> Unit) {
-        for (i in 0 until adapter.itemCount) {
-            val viewHolder = recyclerView.findViewHolderForAdapterPosition(i)
-            viewHolder?.also {
-                (viewHolder as RemindersItemViewHolder).also {
-                    func(it)
-                }
-            }
-        }
-    }
-
-    /**
-     * onChildDraw() draws over this only if there's some swiping going on which means
-     * need to draw the icon in both places
-     */
-    private fun drawButton(canvas: Canvas, viewHolder: RemindersItemViewHolder) {
-        val itemView = viewHolder.itemView as CardView
-        viewHolder.storeButtonAndBackRect(itemView)
-
-        canvas.drawRoundRect(viewHolder.buttonRect, itemView.radius, itemView.radius, paint)
-
-        if (viewHolder.buttonState != ReminderDeleteButtonState.GONE) {
-            drawDeleteIcon(canvas, viewHolder)
         }
     }
 
@@ -402,117 +340,14 @@ class SwipeToRevealCallback(val context: Context, val fragment: RemindersListFra
         background.draw(c)
         drawDeleteIcon(c, viewHolder)
 
-        if (abs(dX) < viewHolder.buttonRect.width() && viewHolder.buttonState != ReminderDeleteButtonState.GONE) {
+        if (abs(dX) < viewHolder.buttonRect.width() && viewHolder.buttonState != ReminderDeleteIconState.GONE) {
             Log.d(LOG_TAG, "onChildDraw: dx is less than button width ${viewHolder.binding.reminder?.text}")
-        }
-
-
-        // from 2nd method
-
-        var dX = dX
-        if (viewHolder.buttonState != ReminderDeleteButtonState.GONE) {
-            if (viewHolder.buttonState == ReminderDeleteButtonState.LEFT_VISIBLE)
-                dX = dX.coerceAtLeast(viewHolder.buttonRect.width())
-            if (viewHolder.buttonState == ReminderDeleteButtonState.RIGHT_VISIBLE)
-                dX = dX.coerceAtMost(-viewHolder.buttonRect.width())
-            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-        } else {
-            setTouchListener(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-        }
-
-        if (viewHolder.buttonState == ReminderDeleteButtonState.GONE) {
-            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-        }
-    }
-
-    /**
-     * not too sure what this does
-     */
-/*
-    override fun convertToAbsoluteDirection(flags: Int, layoutDirection: Int): Int {
-        var found = false
-        for (i in 0 until adapter.itemCount) {
-            val viewHolder = recyclerView.findViewHolderForAdapterPosition(i)
-            viewHolder?.also {
-                (it as RemindersItemViewHolder).run{
-                    if (swipeBack) {
-                        swipeBack = false
-                        found = true
-                    }
-                }
-            }
-        }
-
-        if (found) {
-            return 0
-        }
-
-        return super.convertToAbsoluteDirection(flags, layoutDirection)
-    }
-*/
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setTouchListener(c: Canvas, recyclerView: RecyclerView, viewHolder: RemindersItemViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
-        recyclerView.setOnTouchListener { v, event ->
-            viewHolder.swipeBack = event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
-            if (viewHolder.swipeBack) {
-                Log.d(LOG_TAG, "setTouchListener: on a swipe back")
-                if (dX < -viewHolder.buttonRect.width()) {
-                    viewHolder.buttonState = ReminderDeleteButtonState.RIGHT_VISIBLE
-                }
-                else if (dX > viewHolder.buttonRect.width()) {
-                    viewHolder.buttonState = ReminderDeleteButtonState.LEFT_VISIBLE
-                }
-
-                if (viewHolder.buttonState != ReminderDeleteButtonState.GONE) {
-                    setTouchDownListener(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-                    setItemsClickable(recyclerView, false)
-                }
-            }
-            false
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setTouchDownListener(c: Canvas, recyclerView: RecyclerView, viewHolder: RemindersItemViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
-        recyclerView.setOnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                Log.d(LOG_TAG, "setTouchDownListener: got down")
-                setTouchUpListener(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-            }
-            false
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setTouchUpListener(c: Canvas, recyclerView: RecyclerView, viewHolder: RemindersItemViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
-        recyclerView.setOnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_UP) {
-                Log.d(LOG_TAG, "setTouchUpListener: got up")
-                super@SwipeToRevealCallback.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive)
-                recyclerView.setOnTouchListener { v, event -> false }
-                setItemsClickable(recyclerView, true)
-                if (viewHolder.buttonState != ReminderDeleteButtonState.GONE && viewHolder.buttonRect.contains(event.x, event.y)) {
-                    if (viewHolder.buttonState == ReminderDeleteButtonState.RIGHT_VISIBLE) {
-                        Log.d(LOG_TAG, "delete clicked")
-                    }
-                }
-
-                viewHolder.swipeBack = false
-                viewHolder.buttonState = ReminderDeleteButtonState.GONE
-            }
-            false
-        }
-    }
-
-    private fun setItemsClickable(recyclerView: RecyclerView, isClickable: Boolean) {
-        for (i in 0 until recyclerView.childCount) {
-            recyclerView.getChildAt(i).isClickable = isClickable
         }
     }
 }
 
-internal enum class ReminderDeleteButtonState {
+@Suppress("unused")
+internal enum class ReminderDeleteIconState {
     GONE, LEFT_VISIBLE, RIGHT_VISIBLE
 }
 
