@@ -654,7 +654,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
      * orientation changes
      */
     private fun trackViewModel() {
-        activeTimerViewModel!!.timer.observe(activity!!, Observer {
+        activeTimerViewModel!!.repository.timer.observe(activity!!, Observer {
             timer ->
             if (timer != null) {                    // first run on install, this runs before the initial data exists
                 isEditing = timer.isEdited()

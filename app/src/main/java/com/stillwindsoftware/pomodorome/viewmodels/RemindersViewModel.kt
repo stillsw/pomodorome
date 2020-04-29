@@ -5,14 +5,12 @@ import android.graphics.RectF
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.cardview.widget.CardView
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.stillwindsoftware.pomodorome.ReminderDeleteIconState
 import com.stillwindsoftware.pomodorome.databinding.ReminderListItemBinding
-import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase
 import com.stillwindsoftware.pomodorome.db.Reminder
 import kotlinx.coroutines.launch
 
@@ -20,18 +18,21 @@ import kotlinx.coroutines.launch
  * View model provides non-blocking scope for updates.
  * ViewModels have a coroutine scope based on their lifecycle called viewModelScope
  */
-class RemindersViewModel(application: Application) : AndroidViewModel(application) {
+class RemindersViewModel(application: Application) : PomodoromeViewModel(application) {
     companion object {
         const val LOG_TAG = "RemindersViewModel"
     }
 
-    private var remindersDao = PomodoromeDatabase.getDatabase(application, viewModelScope).remindersDao()
-    var reminders = remindersDao.getRemindersInOrder()
+    private fun insert(reminder: Reminder) = viewModelScope.launch {
+        repository.insert(reminder)
+    }
 
-    private fun update(reminder: Reminder) {
-        viewModelScope.launch {
-            remindersDao.update(reminder)
-        }
+    private fun update(reminder: Reminder) = viewModelScope.launch {
+        repository.update(reminder)
+    }
+
+    fun delete(reminder: Reminder) = viewModelScope.launch {
+        repository.delete(reminder)
     }
 
     fun toggleSelection(reminder: Reminder) {
@@ -40,15 +41,7 @@ class RemindersViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun addReminder(text: String) {
-        viewModelScope.launch {
-            remindersDao.insert(Reminder(null, text, true))
-        }
-    }
-
-    fun deleteReminder(reminder: Reminder) {
-        viewModelScope.launch {
-            remindersDao.delete(reminder)
-        }
+        insert(Reminder(null, text, true))
     }
 }
 

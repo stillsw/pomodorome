@@ -139,7 +139,7 @@
             android:id="@+id/state"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@{viewmodel.timer.timerState.toString()}"
+            android:text="@{viewmodel.repository.timer.timerState.toString()}"
             app:layout_constraintBottom_toTopOf="@id/ad_space"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

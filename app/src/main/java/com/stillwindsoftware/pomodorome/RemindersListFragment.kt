@@ -79,7 +79,7 @@ class RemindersListFragment : DialogFragment() {
                     viewModel.toggleSelection(reminder = reminder)
                 })
 
-                viewModel.reminders.observe(requireActivity(), Observer {
+                viewModel.repository.reminders.observe(requireActivity(), Observer {
                     it?.let { (recyclerView.adapter as RemindersAdapter).submitList(it) }
                 })
 
@@ -140,7 +140,7 @@ class RemindersListFragment : DialogFragment() {
 
         view.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
 
-            viewModel.reminders.value?.let {rems ->
+            viewModel.repository.reminders.value?.let {rems ->
 
                 // if the ok button has no height, then nothing is laid out yet, can't do anything
 
@@ -288,7 +288,7 @@ class SwipeToRevealCallback(val context: Context, private val fragment: Reminder
 
         with(viewHolder.binding.reminder!!) {
             // delete in the db, it'll take a while to propagate
-            fragment.viewModel.deleteReminder(this)
+            fragment.viewModel.delete(this)
 
             // show snack bar for undo
             Snackbar.make(fragment.requireView().findViewById<ConstraintLayout>(R.id.layout),

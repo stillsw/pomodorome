@@ -5,13 +5,11 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
-import android.view.MotionEvent
-import android.view.View
+import android.view.*
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.preference.PreferenceManager
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
@@ -20,7 +18,6 @@ import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms
 import com.stillwindsoftware.pomodorome.events.Notifications
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
-import com.stillwindsoftware.pomodorome.viewmodels.PomodoromeRepository
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -48,12 +45,12 @@ class MainActivity : AppCompatActivity() {
     // it's started from the callback from the TimePickerCircle view which is
     // observing the View Model
 
-    private var isTimingBeingTrackedViews = false           // false when timers being modified
+    private var isTrackingTiming = false           // false when timers being modified
     private var isTimerTrackingRunnablePosted = false   // make sure only posted once
     private val timerTrackingRunnable = Runnable {
         isTimerTrackingRunnablePosted = false
 
-        if (isTimingBeingTrackedViews) {
+        if (isTrackingTiming) {
             updateTrackingOnTimedViews(true)
         }
     }
@@ -63,7 +60,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        PomodoromeRepository.initEmojis(applicationContext)
+        EmojiHelper.initEmojis(applicationContext)
 
         val binding : ActivityMainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
@@ -112,7 +109,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        if (isTimingBeingTrackedViews) {
+        if (isTrackingTiming) {
             updateTrackingOnTimedViews(true)
 
             //todo also here detect if need to be showing rest prompts... ie. in rest time
@@ -143,23 +140,29 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
 
         with(viewModel.getActiveTimer()) {
-            if (this.isPlaying()) {
+            if (isPlaying()) {
                 alarms.setBackgroundAlarm(this)
+                setKeepScreenOnWhileRunning(false)
             }
         }
     }
 
     /**
-     * Called from callbackChangeToTimer() and from onStart()/onStop()
+     * Called from callbackChangeToTimer() and from onResume()
      * If onOrOff is true timing begins by posting the tick runnable delayed
      * otherwise setting the var to false will prevent the next post
      * The runnable calls this method again while timing is being tracked
      */
     private fun updateTrackingOnTimedViews(onOrOff: Boolean) {
 
-        isTimingBeingTrackedViews = onOrOff
+        // being turned on or off for the first time
+        if (isTrackingTiming != onOrOff) {
+            setKeepScreenOnWhileRunning(onOrOff)
+        }
 
-        if (isTimingBeingTrackedViews && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+        isTrackingTiming = onOrOff
+
+        if (isTrackingTiming && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
 
             with(time_picker_circle.doTick()) {
                 if (this != TimerType.NONE) {
@@ -175,6 +178,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setKeepScreenOnWhileRunning(turnOn: Boolean) {
+
+        if (turnOn && PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.keepScreenAwake_pref_key), true)) {
+            Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: keeping screen on")
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        else {
+            Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: turned off keep screen on")
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     /**
      * React to timer expiring while the app is running:
      * - play a sound if set (in a coroutine so it can also wait a bit and then stop the ringtone)
@@ -182,9 +197,8 @@ class MainActivity : AppCompatActivity() {
      * - show rest time prompts
      */
     private fun timerExpiredWhileTicking(timerType: TimerType) {
-        //todo add vibrate and prompting etc
+        //todo add prompting etc
         MainScope().launch {
-
             alarms.playAlarm(timerType)
         }
     }
@@ -259,7 +273,4 @@ class MainActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
-
-
-
 }

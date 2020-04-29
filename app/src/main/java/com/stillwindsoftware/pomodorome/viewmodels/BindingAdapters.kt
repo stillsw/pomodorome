@@ -12,7 +12,7 @@ import androidx.databinding.BindingAdapter
  *
  * This one isn't now used, and using it actually caused build version errors between tools
  */
-@BindingAdapter("app:hideIfZero")
-fun hideIfZero(view: View, number: Long) {
-    view.visibility = if (number == 0L) View.INVISIBLE else View.VISIBLE
-}
+//@BindingAdapter("app:hideIfZero")
+//fun hideIfZero(view: View, number: Long) {
+//    view.visibility = if (number == 0L) View.INVISIBLE else View.VISIBLE
+//}

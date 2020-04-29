@@ -31,6 +31,8 @@ class SettingsActivity : AppCompatActivity(),
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EmojiHelper.initEmojis(applicationContext)
+
         setContentView(R.layout.settings_activity)
         supportFragmentManager
             .beginTransaction()
@@ -52,9 +54,9 @@ class SettingsActivity : AppCompatActivity(),
         return true
     }
 
-    fun showRemindersList(caller: PreferenceFragmentCompat) {
+    fun showRemindersList() {
         RemindersListFragment().apply {
-//            setTargetFragment(caller, 0)
+
             supportFragmentManager.beginTransaction().also { transaction ->
                 supportFragmentManager.findFragmentByTag("remindersList")?.let {
                     transaction.remove(it)
@@ -63,10 +65,6 @@ class SettingsActivity : AppCompatActivity(),
                 transaction.addToBackStack(null)
                 show(transaction, "remindersList")
             }
-//
-////                .replace(R.id.settings, this)
-//                .addToBackStack(null)
-//                .commit()
         }
     }
 
@@ -353,6 +351,7 @@ class SettingsActivity : AppCompatActivity(),
     /**
      * 2nd level fragment for just the settings related to rest time reminders
      */
+    @Suppress("unused") // actually is used, ide incorrectly decides it isn't
     class SettingsRemindersFragment : PreferenceFragmentCompat() {
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -363,8 +362,7 @@ class SettingsActivity : AppCompatActivity(),
 
             return when (preference.key) {
                 getString(R.string.showReminders_list_pref_key) -> {
-//                    startActivity(Intent(context, RemindersActivity::class.java))
-                    (activity as SettingsActivity).showRemindersList(this)
+                    (activity as SettingsActivity).showRemindersList()
                     true
                 }
                 else -> super.onPreferenceTreeClick(preference)
