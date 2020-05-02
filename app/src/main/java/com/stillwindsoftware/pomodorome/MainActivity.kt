@@ -8,19 +8,26 @@ import android.util.Log
 import android.view.*
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
+import com.stillwindsoftware.pomodorome.db.PomodoromeDatabase
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms
 import com.stillwindsoftware.pomodorome.events.Notifications
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
+import com.stillwindsoftware.pomodorome.viewmodels.RemindersViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import java.lang.Math.toRadians
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
 
 /**
  * Thanks to Alex Lockwood for his excellent shape shifter path morphing tool which I used
@@ -41,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pencilToStopDrawable: AnimatedVectorDrawableCompat
     private lateinit var stopToPencilDrawable: AnimatedVectorDrawableCompat
 
+    private var lastReminderTextDelta = Float.MAX_VALUE
+
     // timer ticking is controlled by a runnable posted delayed every 1/10 second
     // it's started from the callback from the TimePickerCircle view which is
     // observing the View Model
@@ -55,7 +64,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val viewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
+    private val timerViewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
+    private val remindersViewModel by lazy { ViewModelProvider(this)[RemindersViewModel::class.java] }
     private val alarms = Alarms(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,18 +74,20 @@ class MainActivity : AppCompatActivity() {
 
         val binding : ActivityMainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
-        binding.viewmodel = viewModel
+        binding.viewmodel = timerViewModel
 
         setSupportActionBar(toolbar)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notifications(this).createNotificationChannel()
 
-        time_picker_circle.timerWidgets[TimerGui.WORK].timePickerTextView = work_time
-        time_picker_circle.timerWidgets[TimerGui.REST].timePickerTextView = rest_time
+        timer_gui.timerWidgets[TimerGui.POMODORO].timePickerTextView = pomodoro_time
+        timer_gui.timerWidgets[TimerGui.REST].timePickerTextView = rest_time
 
         playToPauseDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.play_to_pause_avd)!!
         pauseToPlayDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.pause_to_play_avd)!!
         pencilToStopDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.pencil_to_stop_avd)!!
         stopToPencilDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.stop_to_pencil_avd)!!
+
+        remindersViewModel.repository.reminders.observe(this, Observer {  }) // for now just have an active observer to trigger list population
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {
@@ -139,7 +151,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
 
-        with(viewModel.getActiveTimer()) {
+        with(timerViewModel.getActiveTimer()) {
             if (isPlaying()) {
                 alarms.setBackgroundAlarm(this)
                 setKeepScreenOnWhileRunning(false)
@@ -164,16 +176,20 @@ class MainActivity : AppCompatActivity() {
 
         if (isTrackingTiming && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
 
-            with(time_picker_circle.doTick()) {
-                if (this != TimerType.NONE) {
+            timer_gui.doTick().also { (timerType, restElapsed) ->
+                if (timerType != TimerType.NONE) {
                     Log.d(LOG_TAG, "updateTrackingOnTimedViews: timer expired this go round")
-                    timerExpiredWhileTicking(this)
+                    timerExpiredWhileTicking(timerType)
+                }
+
+                if (restElapsed != 0L) {
+                    animateReminderText(restElapsed)
                 }
             }
 
             if (!isTimerTrackingRunnablePosted) {
                 isTimerTrackingRunnablePosted = true
-                time_picker_circle.postDelayed(timerTrackingRunnable, TIMER_DELAY)
+                timer_gui.postDelayed(timerTrackingRunnable, TIMER_DELAY)
             }
         }
     }
@@ -197,10 +213,70 @@ class MainActivity : AppCompatActivity() {
      * - show rest time prompts
      */
     private fun timerExpiredWhileTicking(timerType: TimerType) {
+
         //todo add prompting etc
+
+        startReminderText(timerType)
+
         MainScope().launch {
             alarms.playAlarm(timerType)
         }
+    }
+
+    /**
+     * Called when a timer expires, so if it's rest time it resets the timing of the
+     * reminder text view
+     */
+    private fun startReminderText(timerType: TimerType) {
+        if (!PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean(getString(R.string.showReminders_pref_key), false)) {
+            Log.d(LOG_TAG, "startReminderText: preference is not to show reminder prompt")
+            return
+        }
+
+        if (timerType == TimerType.REST ) {
+            remindersViewModel.getReminderText()?.let {
+                rest_reminder.visibility = View.VISIBLE
+                rest_reminder.text = it
+            }
+        }
+        else {
+            rest_reminder.visibility = View.GONE
+        }
+    }
+
+    /**
+     * Called while rest time is showing, so if it's rest time it resets the timing of the
+     * reminder text view
+     */
+    private fun animateReminderText(restElapsed: Long) {
+        // in case the activity starts mid rest time and the prompt isn't visible yet
+        val startsInvisible = rest_reminder.visibility != View.VISIBLE
+
+        if (startsInvisible) {
+            startReminderText(TimerType.REST)
+        }
+
+        // use the progress within a minute to get a y value from sine
+        ((restElapsed % PomodoromeDatabase.ONE_MINUTE) / PomodoromeDatabase.ONE_MINUTE.toFloat())
+            .also { delta ->
+                // detect going over a minute to get another text
+                if (delta < lastReminderTextDelta && !startsInvisible) {
+                    remindersViewModel.getReminderText()?.let {
+                        rest_reminder.text = it
+                    }
+                }
+
+                lastReminderTextDelta = delta // so can assess when a minute elapses
+
+                // animate the text down to middle and back to top, it should swap to a new text then
+                if (rest_reminder.text.isNotEmpty()) {
+                    // scale up to full size quickly but not larger
+                    rest_reminder.scaleY = min(10f * if (delta <= .5f) delta else 1.0f - delta, 1f)
+                    rest_reminder.translationY = (sin(toRadians((360.0 * delta)-90)) * timer_gui.height / 4f).toFloat()
+//                    Log.d(LOG_TAG, "delta=$delta scale=${rest_reminder.scaleY} sin=$y")
+                }
+            }
     }
 
     /**
@@ -209,14 +285,14 @@ class MainActivity : AppCompatActivity() {
     fun playPausePressed(@Suppress("UNUSED_PARAMETER") view: View) {
 
         // currently in editing needs to transition out
-        time_picker_circle.transitionOutOfEditing()
+        timer_gui.transitionOutOfEditing()
 
         // not the current state might mean the editStop button needs to change
-        if (viewModel.getActiveTimer().isStopped()) {
+        if (timerViewModel.getActiveTimer().isStopped()) {
             edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
         }
 
-        viewModel.toggleStartPause().also { isStarted ->
+        timerViewModel.toggleStartPause().also { isStarted ->
             play_button.setImageDrawable((if (isStarted) playToPauseDrawable else pauseToPlayDrawable).also {
                 it.start()
             })
@@ -230,21 +306,21 @@ class MainActivity : AppCompatActivity() {
     fun editStopPressed(@Suppress("UNUSED_PARAMETER") view: View) {
 
         // choose edit... only allowed to edit from stopped
-        if (viewModel.getActiveTimer().isStopped()) {
-            time_picker_circle.editTimers()             // start transition
+        if (timerViewModel.getActiveTimer().isStopped()) {
+            timer_gui.editTimers()             // start transition
             edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
-            viewModel.edit()
+            timerViewModel.edit()
         }
         else { // choice is to stop whatever is happening
-            time_picker_circle.transitionOutOfEditing()   // does nothing if not editing
+            timer_gui.transitionOutOfEditing()   // does nothing if not editing
             edit_button.setImageDrawable(stopToPencilDrawable.also { it.start() })
 
             // playing means the current button is showing pause icon, change to play
-            if (viewModel.getActiveTimer().isPlaying()) {
+            if (timerViewModel.getActiveTimer().isPlaying()) {
                 play_button.setImageDrawable(pauseToPlayDrawable.also { it.start() })
             }
 
-            viewModel.stop()
+            timerViewModel.stop()
         }
     }
 

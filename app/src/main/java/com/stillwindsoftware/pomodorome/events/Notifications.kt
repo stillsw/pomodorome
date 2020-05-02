@@ -42,10 +42,7 @@ class Notifications(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) NOTIFICATION_CHANNEL_ID else "")
 
             .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(context.getString(when {
-                    currentState == TimerState.PAUSED -> R.string.notification_paused
-                    timerType == TimerType.REST -> R.string.notification_pomodoro
-                    else -> R.string.notification_rest }))
+            .setContentText(getNotificationMessage(currentState, timerType))
             .setSmallIcon(R.drawable.ic_timer_notification)
             .setAutoCancel(true)
             .setCategory(Notification.CATEGORY_ALARM)
@@ -78,6 +75,22 @@ class Notifications(private val context: Context) {
                         notify(NOTIFICATION_ID, builder.build())
                     }
             }
+    }
+
+    /**
+     * A simple string lookup, except for when it's a rest timer and need to lookup a reminder text
+     */
+    private fun getNotificationMessage(currentState: TimerState, timerType: TimerType): String {
+
+
+
+        return context.getString(
+            when {
+                currentState == TimerState.PAUSED -> R.string.notification_paused
+                timerType == TimerType.REST -> R.string.notification_pomodoro
+                else -> R.string.notification_rest
+            }
+        )
     }
 
     private fun makePendingIntentForAlarmReceiver(reqCode: Int, timerType: TimerType, triggerAtMillis: Long): PendingIntent {

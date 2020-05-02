@@ -13,4 +13,5 @@
     <color name="timePickerBackground">#145e90</color>
     <color name="timePickerDivisionsBackground">#eceff1</color>
     <color name="timePickerDivisions">@color/timePickerBackground</color>
+    <color name="restReminderBackground">@color/colorPrimary</color>
 </resources>

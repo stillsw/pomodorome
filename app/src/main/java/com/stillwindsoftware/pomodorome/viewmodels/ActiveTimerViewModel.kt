@@ -82,13 +82,13 @@ class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(appli
     fun getActiveTimer() = repository.timer.value!!
 
     /**
-     * Called when ticking the timers, returns how many millis left for
+     * Called when ticking the timers, returns how many millis elapsed for
      * the timer in question
      */
-    fun getElapsedMillis(isForWork: Boolean, now: Long): Long {
+    fun getElapsedMillis(isForPomodoro: Boolean, now: Long): Long {
         repository.timer.value!!.also {
             with(it.getElapsedMillis(now)) {
-                return if (isForWork) {                     // work time
+                return if (isForPomodoro) {                 // work time
                     if (this < it.pomodoroDuration) {       // elapsed if under pomodoro duration
                         this
                     }

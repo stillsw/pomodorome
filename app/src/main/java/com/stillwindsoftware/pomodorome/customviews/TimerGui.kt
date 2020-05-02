@@ -53,7 +53,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
     companion object {
         private const val LOG_TAG = "TimerGui"
-        const val WORK = 0
+        const val POMODORO = 0
         const val REST = 1
         private const val MINUTES = 60f
         private const val HALF_SECOND = 500L
@@ -93,8 +93,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
     private var thumbRingCircumference = 0f
     private var thumbOverlapDegreesShift = 0f           // the amount to shift thumbs on their ring around the circle when overlapping
     private val divisionsPoints = FloatArray(240)  // drawn points for lines at the minutes
-    private var currentInput =
-        WORK
+    private var currentInput = POMODORO
     private var isEditing = false                       // cache the timer state so drawing has a bit less overhead
     private var isRunning = false
     private var isTransitionEditing = false             // darken colours in the middle while in transition
@@ -144,7 +143,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
         var minutes: Int by Delegates.observable(0) { _, _, new ->
 
-            val isWorkTime = timerWidgets.indexOf(this) == WORK
+            val isWorkTime = timerWidgets.indexOf(this) == POMODORO
 
             calcSweepAngles(new)
             calcThumbDegrees(new, isWorkTime)
@@ -174,7 +173,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             minutesDrawnSweepAngle = newMins / MINUTES * FULL_CIRCLE
 
             // start of rest changes depending on work, for safety always re-calc here
-            timerWidgets[REST].minutesDrawnSweepAngleStart = TWELVE_O_CLOCK + timerWidgets[WORK].minutesDrawnSweepAngle
+            timerWidgets[REST].minutesDrawnSweepAngleStart = TWELVE_O_CLOCK + timerWidgets[POMODORO].minutesDrawnSweepAngle
         }
 
         /**
@@ -191,7 +190,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
                 timerWidgets[REST].calcThumbDegrees(timerWidgets[REST].minutes, isWorkTime = false, isRecursiveCall = true)
             }
             else {
-                thumbDegrees += timerWidgets[WORK].thumbDegrees
+                thumbDegrees += timerWidgets[POMODORO].thumbDegrees
             }
 
             with(toRadians(thumbDegrees.toDouble()).toFloat()) {
@@ -215,15 +214,15 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             // for testing: tempOverlapPointTo.set(0f, 0f)  // test for overlap of thumbs
 
             val distanceSquared = getDistanceSquared(
-                timerWidgets[WORK].thumbPos.x, timerWidgets[WORK].thumbPos.y,
+                timerWidgets[POMODORO].thumbPos.x, timerWidgets[POMODORO].thumbPos.y,
                 timerWidgets[REST].thumbPos.x, timerWidgets[REST].thumbPos.y)
 
             // no interference between thumb positions, reset and done
             // when change orientation both thumbs are at 0,0 so check for that too, it will be
             // corrected when the 2nd thumb's position is calculated
             if (distanceSquared > thumbSize * thumbSize
-                || (distanceSquared == 0f && timerWidgets[WORK].thumbShowPos.equals(0f, 0f))) {
-                timerWidgets[WORK].thumbShowPos.set(timerWidgets[WORK].thumbPos)
+                || (distanceSquared == 0f && timerWidgets[POMODORO].thumbShowPos.equals(0f, 0f))) {
+                timerWidgets[POMODORO].thumbShowPos.set(timerWidgets[POMODORO].thumbPos)
                 timerWidgets[REST].thumbShowPos.set(timerWidgets[REST].thumbPos)
                 return
             }
@@ -233,14 +232,14 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
             val midPointPointedTo = if (dist == 0f) { thumbPointTo }  // means the 2 thumbs point to the exact same place
             else {
-                val vx = timerWidgets[WORK].thumbPointTo.x - timerWidgets[REST].thumbPointTo.x
-                val vy = timerWidgets[WORK].thumbPointTo.y - timerWidgets[REST].thumbPointTo.y
+                val vx = timerWidgets[POMODORO].thumbPointTo.x - timerWidgets[REST].thumbPointTo.x
+                val vy = timerWidgets[POMODORO].thumbPointTo.y - timerWidgets[REST].thumbPointTo.y
 
                 PointF(vx / 2f,vy / 2f)
                     .apply {    // got the vector to midpoint, subtract from 1st point to get the mid
-                        Log.d(LOG_TAG, "calcThumbDegrees: Overlap, vector to midpoint $this (work=${timerWidgets[WORK].thumbPointTo} rest=${timerWidgets[REST].thumbPointTo}")
-                        x = timerWidgets[WORK].thumbPointTo.x - x
-                        y = timerWidgets[WORK].thumbPointTo.y - y
+                        Log.d(LOG_TAG, "calcThumbDegrees: Overlap, vector to midpoint $this (work=${timerWidgets[POMODORO].thumbPointTo} rest=${timerWidgets[REST].thumbPointTo}")
+                        x = timerWidgets[POMODORO].thumbPointTo.x - x
+                        y = timerWidgets[POMODORO].thumbPointTo.y - y
                     }.also {
                         Log.d(LOG_TAG, "calcThumbDegrees: Overlap, point to midpoint $it")
                     }
@@ -259,8 +258,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
             // overlapped with large rest angle must mean rest is on the left
             (timerWidgets[REST].minutesDrawnSweepAngle < QUARTER_CIRCLE).also { isRestOnRight ->
-                    timerWidgets[if (isRestOnRight) WORK else REST].thumbShowPos.set(left)
-                    timerWidgets[if (isRestOnRight) REST else WORK].thumbShowPos.set(right)
+                    timerWidgets[if (isRestOnRight) POMODORO else REST].thumbShowPos.set(left)
+                    timerWidgets[if (isRestOnRight) REST else POMODORO].thumbShowPos.set(right)
             }
         }
 
@@ -272,8 +271,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             var newMinutes = toMinutes
 
             // rest is relative to work minutes
-            if (timerWidgets.indexOf(this) != WORK) {
-                newMinutes = with(toMinutes - timerWidgets[WORK].minutes) {
+            if (timerWidgets.indexOf(this) != POMODORO) {
+                newMinutes = with(toMinutes - timerWidgets[POMODORO].minutes) {
                     if (this < 0) this + 60 else this  // moved past 12 o'clock
                 }
             }
@@ -295,7 +294,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
         with(context.obtainStyledAttributes(attrs,
             R.styleable.TimerGui, 0, 0)) {
-            timerWidgets[WORK].colour = getColor(
+            timerWidgets[POMODORO].colour = getColor(
                 R.styleable.TimerGui_workColour, resources.getColor(
                     R.color.colorAccent, null))
             timerWidgets[REST].colour = getColor(
@@ -310,13 +309,13 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         }
 
         thumbColour = resources.getColor(R.color.colorAccent, null)
-        timerWidgets[WORK].darkenedColor = transitionColour(timerWidgets[WORK],
+        timerWidgets[POMODORO].darkenedColor = transitionColour(timerWidgets[POMODORO],
             EDIT_STATE_DARKENED_RATIO, darken = true)
         timerWidgets[REST].darkenedColor = transitionColour(timerWidgets[REST],
             EDIT_STATE_DARKENED_RATIO, darken = true)
 
         Log.v(
-            LOG_TAG, "init: colours work=${Integer.toHexString(timerWidgets[WORK].colour)} darkened=${Integer.toHexString(timerWidgets[WORK].darkenedColor)}" +
+            LOG_TAG, "init: colours work=${Integer.toHexString(timerWidgets[POMODORO].colour)} darkened=${Integer.toHexString(timerWidgets[POMODORO].darkenedColor)}" +
                 " rest=${Integer.toHexString(timerWidgets[REST].colour)} darkened=${Integer.toHexString(timerWidgets[REST].darkenedColor)}")
 
         clockBackgrd = resources.getDrawable(R.drawable.ic_timer_background, null)
@@ -447,11 +446,11 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
     private fun allocateTouchToTimer(minutesOnTouchDown: Int, touchX: Float, touchY: Float) {
 
         // compare distances from touch to thumbs, if within a short distance of one take it
-        val distToWork = getDistanceSquared(touchX, touchY, timerWidgets[WORK].thumbPos.x, timerWidgets[WORK].thumbPos.y)
+        val distToWork = getDistanceSquared(touchX, touchY, timerWidgets[POMODORO].thumbPos.x, timerWidgets[POMODORO].thumbPos.y)
         val distToRest = getDistanceSquared(touchX, touchY, timerWidgets[REST].thumbPos.x, timerWidgets[REST].thumbPos.y)
 
         if (min(distToWork, distToRest) < (thumbSize * thumbSize * 4)) { // twice the size of a thumb
-            currentInput = if (distToWork < distToRest) WORK else REST   // < ensures that if they are same rest is chosen
+            currentInput = if (distToWork < distToRest) POMODORO else REST   // < ensures that if they are same rest is chosen
             Log.d(LOG_TAG, "allocateTouchToTimer: touch within 2 widths of thumb for ${if (currentInput == 0) "work" else "rest"}")
             return
         }
@@ -459,18 +458,18 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         // as the rest timing can overlap the work timing, check it first
         // note, adding them together could exceed 60 (mins on clock), so calc the ranges first
 
-        val restEndMinutes = timerWidgets[WORK].minutes + timerWidgets[REST].minutes
+        val restEndMinutes = timerWidgets[POMODORO].minutes + timerWidgets[REST].minutes
 
         if (restEndMinutes > 60 && minutesOnTouchDown <= restEndMinutes % 60
-            || (minutesOnTouchDown >= timerWidgets[WORK].minutes
+            || (minutesOnTouchDown >= timerWidgets[POMODORO].minutes
                     && minutesOnTouchDown <= restEndMinutes)) {
             currentInput =
                 REST
             Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of rest")
         }
-        else if (minutesOnTouchDown <= timerWidgets[WORK].minutes) {        // not in range of rest, range of work is simple test
+        else if (minutesOnTouchDown <= timerWidgets[POMODORO].minutes) {        // not in range of rest, range of work is simple test
             currentInput =
-                WORK
+                POMODORO
             Log.d(LOG_TAG, "allocateTouchToTimer: touch in range of work")
         }
         else if (timerWidgets[REST].minutes == 0) {                         // over top of each other, choose rest
@@ -479,7 +478,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             Log.d(LOG_TAG, "allocateTouchToTimer: choose rest cos one over the other")
         }
         else {                                                              // neither work nor rest range, so it's somewhere in the white space, just go for nearer
-            currentInput = if (distToWork < distToRest) WORK else REST      // < ensures that if they are same rest is chosen, otherwise would always follow work and if rest is 0 it's impossible to set it
+            currentInput = if (distToWork < distToRest) POMODORO else REST      // < ensures that if they are same rest is chosen, otherwise would always follow work and if rest is 0 it's impossible to set it
             Log.d(LOG_TAG, "allocateTouchToTimer: touch outside of ranges, set to nearest = ${if (currentInput == 0) "work" else "rest"}")
         }
     }
@@ -518,7 +517,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             paint.color = timeSetting.colour
 
             // work should fill up the whole circle when 0      //Log.d(LOG_TAG, "onDraw: work=${currentInput == WORK} minutes=$minutes")
-            if (index == WORK && timerWidgets[WORK].minutes == 0) {
+            if (index == POMODORO && timerWidgets[POMODORO].minutes == 0) {
                 canvas.drawCircle(centrePoint.x, centrePoint.y, minutesRingOuterRadius, paint)
             }
             else {
@@ -539,16 +538,16 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             // same colours as the timers, note always within the outer coloured arcs
             // so use the same rects
 
-            paint.color = timerWidgets[WORK].colour
+            paint.color = timerWidgets[POMODORO].colour
             canvas.drawArc(minutesOuterRingRect,
                 TWELVE_O_CLOCK, minutesElapsedDrawnSweepAngle,true, paint)
 
-            if (minutesElapsedDrawnSweepAngle > timerWidgets[WORK].minutesDrawnSweepAngle) {
+            if (minutesElapsedDrawnSweepAngle > timerWidgets[POMODORO].minutesDrawnSweepAngle) {
                 paint.color = timerWidgets[REST].colour
                 canvas.drawArc(
                     minutesOuterRingRect,
                     timerWidgets[REST].minutesDrawnSweepAngleStart,
-                    minutesElapsedDrawnSweepAngle - timerWidgets[WORK].minutesDrawnSweepAngle,
+                    minutesElapsedDrawnSweepAngle - timerWidgets[POMODORO].minutesDrawnSweepAngle,
                     true, paint)
             }
         }
@@ -569,7 +568,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             else {
                 transitionDelta = elapsed / EDIT_STATE_TRANSITION_MILLIS
                 with(EDIT_STATE_DARKENED_RATIO * transitionDelta) {
-                    transitionColour(timerWidgets[WORK], this, darken = isEditing)
+                    transitionColour(timerWidgets[POMODORO], this, darken = isEditing)
                     transitionColour(timerWidgets[REST], this, darken = isEditing)
                 }
 
@@ -582,9 +581,9 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         // or one of the cached colours (normal or darkened)
 
         val centreColours = when {
-            isTransitionEditing -> Color.HSVToColor(timerWidgets[WORK].transitionColour) to Color.HSVToColor(timerWidgets[REST].transitionColour)
-            isEditing -> timerWidgets[WORK].darkenedColor to timerWidgets[REST].darkenedColor
-            else -> timerWidgets[WORK].colour to timerWidgets[REST].colour
+            isTransitionEditing -> Color.HSVToColor(timerWidgets[POMODORO].transitionColour) to Color.HSVToColor(timerWidgets[REST].transitionColour)
+            isEditing -> timerWidgets[POMODORO].darkenedColor to timerWidgets[REST].darkenedColor
+            else -> timerWidgets[POMODORO].colour to timerWidgets[REST].colour
         }
 
         paint.color = centreColours.first
@@ -660,7 +659,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
                 isEditing = timer.isEdited()
                 isRunning = timer.isTrackingTiming()
 
-                timerWidgets[WORK].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
+                timerWidgets[POMODORO].minutes = (timer.pomodoroDuration / ONE_MINUTE).toInt()
                 timerWidgets[REST].minutes = (timer.restDuration / ONE_MINUTE).toInt()
 
                 Log.d(
@@ -735,24 +734,28 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
      * If a minute advances, that's shown on the clock too
      * If either timer expires the return type notifies the activity which it was
      */
-    fun doTick(): TimerType {
+    fun doTick(): Pair<TimerType, Long> {
 
         var returnType = TimerType.NONE
 
         if (!activeTimerViewModel!!.getActiveTimer().isTrackingTiming()) {     // ignore if not timing
             Log.d(LOG_TAG, "doTick: should only be called while playing or paused")
-            return returnType
+            return returnType to 0L
         }
 
         val isPaused = activeTimerViewModel!!.getActiveTimer().isPaused()
         val now = System.currentTimeMillis()
         var totalElapsed = 0L
+        var restElapsed = 0L
 
         for ((index, timeSetting) in timerWidgets.withIndex()) {
-            (activeTimerViewModel!!.getElapsedMillis(index == WORK, now)).also {
+            (activeTimerViewModel!!.getElapsedMillis(index == POMODORO, now)).also {
                 elapsedMillis ->
                 timeSetting.timePickerTextView?.setTime(elapsedMillis, ticking = true, isPaused = isPaused)
                 totalElapsed += elapsedMillis
+                if (index == REST) {
+                    restElapsed = elapsedMillis
+                }
             }
         }
 
@@ -773,7 +776,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
                     if ((totalElapsed % ONE_MINUTE < HALF_SECOND)) {
                         if (minutesElapsedWhenTicking == 0L) {
                             returnType = TimerType.POMODORO
-                        } else if (minutesElapsedWhenTicking == timerWidgets[WORK].minutes.toLong()) {
+                        } else if (minutesElapsedWhenTicking == timerWidgets[POMODORO].minutes.toLong()) {
                             returnType = TimerType.REST
                         }
                     }
@@ -785,7 +788,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             ticksSinceBlink = 0
         }
 
-        return returnType
+        return returnType to restElapsed
     }
 }
 
@@ -839,7 +842,7 @@ class TimePickerTextView : AppCompatTextView {
         }
     }
 
-    private fun isWorkTextTimer() = this.id == R.id.work_time
+    private fun isPomodoroTextTimer() = this.id == R.id.pomodoro_time
 
     /**
      * See comments in layout activity_main.xml... width is not set correctly
@@ -851,7 +854,7 @@ class TimePickerTextView : AppCompatTextView {
     fun setTime(timeInMillis: Long, ticking: Boolean = false, isPaused: Boolean = false) {
 
         // work timer should show as 60 in the case of user putting it back to 0, more natural that way
-        var newText = if (timeInMillis == 0L && isWorkTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
+        var newText = if (timeInMillis == 0L && isPomodoroTextTimer()) {"60:00"} else TIMER_FORMATTER.format(timeInMillis)
 
         // to manage the on/off ticking effect with the colon in the middle detect change in the seconds and alternate
 

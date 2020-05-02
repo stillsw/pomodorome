@@ -43,6 +43,10 @@ class RemindersViewModel(application: Application) : PomodoromeViewModel(applica
     fun addReminder(text: String) {
         insert(Reminder(null, text, true))
     }
+
+    fun getReminderText(): String? {
+        return repository.getNextReminder(getApplication())?.text
+    }
 }
 
 /**
