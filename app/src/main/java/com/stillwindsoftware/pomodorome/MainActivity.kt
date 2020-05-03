@@ -12,6 +12,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
+import com.google.android.gms.ads.AdView
 import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
@@ -25,9 +26,10 @@ import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.lang.Math.toRadians
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import com.google.android.gms.ads.MobileAds
+import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 
 /**
  * Thanks to Alex Lockwood for his excellent shape shifter path morphing tool which I used
@@ -88,6 +90,18 @@ class MainActivity : AppCompatActivity() {
         stopToPencilDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.stop_to_pencil_avd)!!
 
         remindersViewModel.repository.reminders.observe(this, Observer {  }) // for now just have an active observer to trigger list population
+
+        // admob
+
+        MobileAds.initialize(this) {
+
+        }
+
+        AdView(this).apply {
+            adUnitId = getString(R.string.admob_banner_id)
+            ad_space.addView(this)
+            AdmobLoader.loadBanner(this@MainActivity, this, windowManager.defaultDisplay)
+        }
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {

@@ -61,5 +61,8 @@
     <string name="showReminders_random_pref_key" translatable="false">com.stillwindsoftware.pomodorome.random_reminders</string>
     <string name="showReminders_list_pref_key" translatable="false">com.stillwindsoftware.pomodorome.list_reminders</string>
 
+    <string name="admob_app_id" translatable="false">ca-app-pub-1327712413378636~2290792975</string>
+    <string name="admob_banner_id" translatable="false">ca-app-pub-1327712413378636/3692053297</string>
+
     <!-- 🧑🏽‍🎓  -->
 </resources>

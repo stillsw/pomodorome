@@ -70,8 +70,8 @@
             app:layout_constraintDimensionRatio="1:1"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/toolbarLayout"
-            app:layout_constraintBottom_toTopOf="@id/play_button"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/ad_space"
             android:layout_margin="@dimen/time_picker_margin"
             />
 
@@ -130,13 +130,14 @@
             android:id="@+id/play_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/fab_margin_less"
+            android:layout_marginRight="@dimen/fab_margin_less"
             app:fabCustomSize="@dimen/fab_size_large"
             app:maxImageSize="@dimen/fab_max_image_large"
             android:onClick="playPausePressed"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/timer_gui"
+            app:layout_constraintLeft_toRightOf="@id/timer_gui"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/toolbarLayout"
+            app:layout_constraintBottom_toTopOf="@id/ad_space"
             />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -145,10 +146,10 @@
             android:layout_height="wrap_content"
             app:fabSize="mini"
             android:onClick="editStopPressed"
-            app:layout_constraintStart_toEndOf="@id/play_button"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/play_button"
-            app:layout_constraintBottom_toBottomOf="@id/play_button"
+            app:layout_constraintStart_toStartOf="@id/play_button"
+            app:layout_constraintEnd_toEndOf="@id/play_button"
+            app:layout_constraintTop_toBottomOf="@id/play_button"
+            app:layout_constraintBottom_toTopOf="@id/ad_space"
             />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -158,10 +159,10 @@
             app:fabSize="mini"
             app:srcCompat="@drawable/ic_alarm"
             android:onClick="autoStartPressed"
-            app:layout_constraintEnd_toStartOf="@id/play_button"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/play_button"
-            app:layout_constraintBottom_toBottomOf="@id/play_button"
+            app:layout_constraintStart_toStartOf="@id/play_button"
+            app:layout_constraintEnd_toEndOf="@id/play_button"
+            app:layout_constraintTop_toBottomOf="@id/toolbarLayout"
+            app:layout_constraintBottom_toTopOf="@id/play_button"
             />
 
         <FrameLayout

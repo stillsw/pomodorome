@@ -78,8 +78,6 @@ dependencies {
 
     // Lifecycle components
     implementation "androidx.lifecycle:lifecycle-extensions:$rootProject.archLifecycleVersion"
-// got errors from this, not sure why
-//    androidTestImplementation "androidx.arch.core:core-testing:$rootProject.androidxArchVersion"
 
     // ViewModel Kotlin support
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$rootProject.archLifecycleVersion"
@@ -96,4 +94,7 @@ dependencies {
     androidTestImplementation "androidx.arch.core:core-testing:$rootProject.coreTestingVersion"
 
     implementation 'androidx.emoji:emoji-appcompat:1.0.0'
+
+    // AdMob SDK
+    implementation 'com.google.android.gms:play-services-ads:19.1.0'
 }
