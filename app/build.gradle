@@ -95,6 +95,7 @@ dependencies {
 
     implementation 'androidx.emoji:emoji-appcompat:1.0.0'
 
-    // AdMob SDK
+    // AdMob SDK and conset
     implementation 'com.google.android.gms:play-services-ads:19.1.0'
+    implementation 'com.google.android.ads.consent:consent-library:1.0.8'
 }

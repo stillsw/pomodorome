@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.*
+import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms
 import java.text.DateFormatSymbols
@@ -28,6 +29,8 @@ class SettingsActivity : AppCompatActivity(),
         private const val LOG_TAG = "SettingsActivity"
         const val INTENT_EXTRA_DIRECT_TO_ALARMS = "com.stillwindsoftware.pomodorome.events.Alarms.INTENT_EXTRA_DIRECT_TO_ALARMS"
     }
+
+    val admobLoader: AdmobLoader by lazy { AdmobLoader(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +92,7 @@ class SettingsActivity : AppCompatActivity(),
 
         /**
          * The 2 ringtones used preference summaries come from the ringtone titles
+         * Consent in EU only
          */
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             addPreferencesFromResource(R.xml.root_preferences)
@@ -104,6 +108,22 @@ class SettingsActivity : AppCompatActivity(),
                             Log.w(LOG_TAG, "onCreatePreferences: could not load pomodoro ringtone")
                             pref.summary = "?"
                         }
+                    }
+                }
+            }
+
+            findPreference<Preference>(getString(R.string.consent_pref_key))?.let { consentPref ->
+                (requireActivity() as SettingsActivity).admobLoader.evaluateConsent { isPersonalized, isNonPersonalized, isEaaOrUnknown ->
+                    consentPref.summary =
+                        when {
+                            isPersonalized -> getString(R.string.consent_pref_summary_personalized)
+                            isNonPersonalized -> getString(R.string.consent_pref_summary_non_personalized)
+                            isEaaOrUnknown -> getString(R.string.consent_pref_summary_required)
+                            else -> getString(R.string.consent_pref_summary_not_required)
+                        }
+
+                    if (!isEaaOrUnknown) {
+                        consentPref.isVisible = false
                     }
                 }
             }
@@ -133,18 +153,17 @@ class SettingsActivity : AppCompatActivity(),
 
                                  startActivityForResult(this, timerType.requestCode)
                              }
-
                      }
 
                      true   // return value
                 }
-                /*todo
-                preference.key == getString(R.string.consent_pref_key) -> {
-                    flavourImplementor.showAdsConsentForm { isPersonalizedConsent ->
+
+                getString(R.string.consent_pref_key) -> {
+                    (requireActivity() as SettingsActivity).admobLoader.showAdsConsentForm { isPersonalizedConsent ->
                         preference.summary = getString(if (isPersonalizedConsent) R.string.consent_pref_summary_personalized else R.string.consent_pref_summary_non_personalized)
                     }
                     true
-                }*/
+                }
                 else -> super.onPreferenceTreeClick(preference)
             }
         }

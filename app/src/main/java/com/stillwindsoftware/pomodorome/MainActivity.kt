@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import java.lang.Math.toRadians
 import kotlin.math.min
 import kotlin.math.sin
-import com.google.android.gms.ads.MobileAds
 import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 
 /**
@@ -40,7 +39,10 @@ class MainActivity : AppCompatActivity() {
     companion object {
         @Suppress("unused")
         private const val LOG_TAG = "MainActivity"
+        private const val PLAY_CLICKS_BEFORE_ADS_CONSENT = 2
         const val TIMER_DELAY = 100L        // ticking interval, not too long otherwise seconds might not change quick enough
+
+        private var playClicksMade = 0 // for firing ads consent form
     }
 
     // the animated vector drawables cached in onCreate() then assigned in callbackChangeToTimer
@@ -68,6 +70,14 @@ class MainActivity : AppCompatActivity() {
 
     private val timerViewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
     private val remindersViewModel by lazy { ViewModelProvider(this)[RemindersViewModel::class.java] }
+
+    private val admobLoader by lazy {
+        AdmobLoader(this, AdView(this@MainActivity)
+            .apply {
+                adUnitId = getString(R.string.admob_banner_id)
+                ad_space.addView(this)
+            }, windowManager.defaultDisplay) }
+
     private val alarms = Alarms(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,16 +102,7 @@ class MainActivity : AppCompatActivity() {
         remindersViewModel.repository.reminders.observe(this, Observer {  }) // for now just have an active observer to trigger list population
 
         // admob
-
-        MobileAds.initialize(this) {
-
-        }
-
-        AdView(this).apply {
-            adUnitId = getString(R.string.admob_banner_id)
-            ad_space.addView(this)
-            AdmobLoader.loadBanner(this@MainActivity, this, windowManager.defaultDisplay)
-        }
+        admobLoader.initialize()
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {
@@ -137,10 +138,9 @@ class MainActivity : AppCompatActivity() {
 
         if (isTrackingTiming) {
             updateTrackingOnTimedViews(true)
-
-            //todo also here detect if need to be showing rest prompts... ie. in rest time
         }
 
+        admobLoader.onActivityResume()
     }
 
     /**
@@ -228,8 +228,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun timerExpiredWhileTicking(timerType: TimerType) {
 
-        //todo add prompting etc
-
         startReminderText(timerType)
 
         MainScope().launch {
@@ -301,17 +299,27 @@ class MainActivity : AppCompatActivity() {
         // currently in editing needs to transition out
         timer_gui.transitionOutOfEditing()
 
-        // not the current state might mean the editStop button needs to change
-        if (timerViewModel.getActiveTimer().isStopped()) {
-            edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
-        }
+        timerViewModel.getActiveTimer().also { timer ->
 
-        timerViewModel.toggleStartPause().also { isStarted ->
-            play_button.setImageDrawable((if (isStarted) playToPauseDrawable else pauseToPlayDrawable).also {
-                it.start()
-            })
-        }
+            // check for ads consent form triggered
+            if (!timer.isPlaying() && ++playClicksMade > PLAY_CLICKS_BEFORE_ADS_CONSENT && admobLoader.isTriggerConsentForm(timer)) {
+                Log.d(LOG_TAG, "playPausePressed: play pressed abort for consent form to load (clicks=$playClicksMade)")
+                setStateForConsentFormOpen(true)
+            }
+            else {
 
+                // not the current state might mean the editStop button needs to change
+                if (timer.isStopped()) {
+                    edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
+                }
+
+                timerViewModel.toggleStartPause().also { isStarted ->
+                    play_button.setImageDrawable((if (isStarted) playToPauseDrawable else pauseToPlayDrawable).also {
+                        it.start()
+                    })
+                }
+            }
+        }
     }
 
     /**
@@ -362,5 +370,13 @@ class MainActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    fun onConsentFormClosed() {
+        setStateForConsentFormOpen(false)
+    }
+
+    private fun setStateForConsentFormOpen(isOpening: Boolean) {
+        fade_out.visibility = if (isOpening) View.VISIBLE else View.GONE
     }
 }

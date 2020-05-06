@@ -39,11 +39,20 @@
             app:title="@string/reminders_title"
             app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsRemindersFragment" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/general_header">
+
         <SwitchPreferenceCompat
             app:key="@string/keepScreenAwake_pref_key"
             app:title="@string/settingsKeep_screen_awake_while_active_label"
             app:defaultValue="true"/>
 
+        <androidx.preference.Preference
+            app:key="@string/consent_pref_key"
+            app:title="@string/consent_pref_title"/>
+
     </PreferenceCategory>
+
 
 </PreferenceScreen>

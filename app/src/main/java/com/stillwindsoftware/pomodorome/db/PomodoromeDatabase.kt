@@ -75,7 +75,8 @@ abstract class PomodoromeDatabase : RoomDatabase() {
 
             // and all the reminders from strings
             remindersDao.insert(*context.resources.getStringArray(R.array.default_reminders)
-                .map { Reminder(null, it, true) }
+                // only the first 3 are selected by default
+                .mapIndexed { index, it -> Reminder(null, it, index < 3) }
                 .toTypedArray())
         }
     }
