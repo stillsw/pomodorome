@@ -12,6 +12,6 @@ open class PomodoromeViewModel(application: Application) : AndroidViewModel(appl
 
     // The ViewModel maintains a reference to the repository to get data.
     val repository: PomodoromeRepository =
-        PomodoromeRepository(PomodoromeDatabase.getDatabase(application, viewModelScope))
+        PomodoromeRepository(application.applicationContext, PomodoromeDatabase.getDatabase(application, viewModelScope))
 
 }

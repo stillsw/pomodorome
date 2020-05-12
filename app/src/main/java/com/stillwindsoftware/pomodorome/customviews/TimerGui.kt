@@ -294,12 +294,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
         with(context.obtainStyledAttributes(attrs,
             R.styleable.TimerGui, 0, 0)) {
-            timerWidgets[POMODORO].colour = getColor(
-                R.styleable.TimerGui_workColour, resources.getColor(
-                    R.color.colorAccent, null))
-            timerWidgets[REST].colour = getColor(
-                R.styleable.TimerGui_restColour, resources.getColor(
-                    R.color.colorAccent, null))
+            timerWidgets[POMODORO].colour = getColor(R.styleable.TimerGui_workColour, resources.getColor(R.color.colorAccent, null))
+            timerWidgets[REST].colour = getColor(R.styleable.TimerGui_restColour, resources.getColor(R.color.colorAccent, null))
             backgroundColour = getColor(R.styleable.TimerGui_backgroundColour, resources.getColor(android.R.color.white, null))
             divisionsBackgroundColour = getColor(R.styleable.TimerGui_divisionsBackgroundColour, backgroundColour)
             divisionsColour = getColor(R.styleable.TimerGui_divisionsColour, resources.getColor(android.R.color.black, null))
@@ -313,10 +309,6 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
             EDIT_STATE_DARKENED_RATIO, darken = true)
         timerWidgets[REST].darkenedColor = transitionColour(timerWidgets[REST],
             EDIT_STATE_DARKENED_RATIO, darken = true)
-
-        Log.v(
-            LOG_TAG, "init: colours work=${Integer.toHexString(timerWidgets[POMODORO].colour)} darkened=${Integer.toHexString(timerWidgets[POMODORO].darkenedColor)}" +
-                " rest=${Integer.toHexString(timerWidgets[REST].colour)} darkened=${Integer.toHexString(timerWidgets[REST].darkenedColor)}")
 
         clockBackgrd = resources.getDrawable(R.drawable.ic_timer_background, null)
         setOnTouchListener(this)
@@ -359,7 +351,8 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         // it's inside the inner circle by the amount of a thumb's radius plus half the stroke
         // width drawn around it plus the distance to the inner circle where the colours are drawn
 
-        thumbRingRadius = hoursRingInnerRadius - thumbRadius - divisionsStrokeWidth * 1.5f - ringsWidth / 3f
+        val thumbStroke = divisionsStrokeWidth * 1.5f
+        thumbRingRadius = hoursRingInnerRadius - thumbRadius - thumbStroke - ringsWidth / 3f
         thumbRingCircumference = (2f * PI * thumbRingRadius).toFloat()
 
         // for shifting the thumbs when they overlap will need the degrees difference
@@ -738,12 +731,12 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
 
         var returnType = TimerType.NONE
 
-        if (!activeTimerViewModel!!.getActiveTimer().isTrackingTiming()) {     // ignore if not timing
+        if (!activeTimerViewModel!!.getActiveTimer()!!.isTrackingTiming()) {     // ignore if not timing
             Log.d(LOG_TAG, "doTick: should only be called while playing or paused")
             return returnType to 0L
         }
 
-        val isPaused = activeTimerViewModel!!.getActiveTimer().isPaused()
+        val isPaused = activeTimerViewModel!!.getActiveTimer()!!.isPaused()
         val now = System.currentTimeMillis()
         var totalElapsed = 0L
         var restElapsed = 0L
@@ -768,7 +761,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
                 invalidate()
 
                 // for the alarm to fire it has to be a) playing, b) expiring this particular timer
-                if (activeTimerViewModel!!.getActiveTimer().isPlaying()) {
+                if (activeTimerViewModel!!.getActiveTimer()!!.isPlaying()) {
 
                     // when just opening from hearing the alarm the minute is still at the change over but
                     // the alarm has already fired, so check within half second of it to avoid triggering again

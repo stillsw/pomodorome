@@ -17,7 +17,10 @@ data class Reminder (
 abstract class RemindersDao : BaseDao<Reminder> {
 
     @Query("SELECT * FROM reminders ORDER BY LOWER(text)")
-    abstract fun getRemindersInOrder(): LiveData<List<Reminder>>
+    abstract fun getReminders(): LiveData<List<Reminder>>
+
+    @Query("SELECT * FROM reminders ORDER BY LOWER(text)")
+    abstract fun getRemindersDirectly(): List<Reminder>
 
     @Query("DELETE FROM reminders")
     abstract suspend fun deleteAll()

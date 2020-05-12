@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.stillwindsoftware.pomodorome.ReminderDeleteIconState
+import com.stillwindsoftware.pomodorome.RemindersHelper
 import com.stillwindsoftware.pomodorome.databinding.ReminderListItemBinding
 import com.stillwindsoftware.pomodorome.db.Reminder
 import kotlinx.coroutines.launch
@@ -45,7 +46,7 @@ class RemindersViewModel(application: Application) : PomodoromeViewModel(applica
     }
 
     fun getReminderText(): String? {
-        return repository.getNextReminder(getApplication())?.text
+        return RemindersHelper(getApplication()).getNextReminder()
     }
 }
 

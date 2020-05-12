@@ -79,7 +79,7 @@ class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(appli
     /**
      * Convenience method
      */
-    fun getActiveTimer() = repository.timer.value!!
+    fun getActiveTimer() = repository.timer.value
 
     /**
      * Called when ticking the timers, returns how many millis elapsed for

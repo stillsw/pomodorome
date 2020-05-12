@@ -1,46 +1,5 @@
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="@string/alerts_header">
-
-        <SwitchPreferenceCompat
-            app:key="@string/play_sounds_pref_key"
-            app:title="@string/alerts_play_sounds"
-            app:defaultValue="true"
-            />
-
-        <!-- NOTE: the keys to these 2 should not be changed, they have to match TimerType -->
-        <androidx.preference.Preference
-            app:key="com.stillwindsoftware.pomodorome.ringtone.POMODORO"
-            app:title="@string/ringtone_pref_title_POMODORO"
-            app:dependency="@string/play_sounds_pref_key"
-            />
-
-        <androidx.preference.Preference
-            app:key="com.stillwindsoftware.pomodorome.ringtone.REST"
-            app:title="@string/ringtone_pref_title_REST"
-            app:dependency="@string/play_sounds_pref_key"
-            />
-
-        <SwitchPreferenceCompat
-            app:key="@string/vibrate_pref_key"
-            app:title="@string/alerts_vibrate"
-            app:defaultValue="false"
-            />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory app:title="@string/timed_settings_header">
-
-        <Preference
-            app:title="@string/auto_start_stop_title"
-            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsAutoStartFragment" />
-
-        <Preference
-            app:title="@string/reminders_title"
-            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsRemindersFragment" />
-
-    </PreferenceCategory>
-
     <PreferenceCategory app:title="@string/general_header">
 
         <SwitchPreferenceCompat
@@ -51,6 +10,22 @@
         <androidx.preference.Preference
             app:key="@string/consent_pref_key"
             app:title="@string/consent_pref_title"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/timed_settings_header">
+
+        <Preference
+            app:title="@string/alerts_header"
+            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsAlertsFragment" />
+
+        <Preference
+            app:title="@string/auto_start_stop_title"
+            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsAutoStartFragment" />
+
+        <Preference
+            app:title="@string/reminders_title"
+            app:fragment="com.stillwindsoftware.pomodorome.SettingsActivity$SettingsRemindersFragment" />
 
     </PreferenceCategory>
 

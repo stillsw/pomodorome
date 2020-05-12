@@ -7,5 +7,5 @@
         android:color="@color/timePickerBezel"
         android:width="2dp"/>
 
-    <corners android:radius="20dp"/>
+    <corners android:radius="@dimen/rest_reminder_corner"/>
 </shape>

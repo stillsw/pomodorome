@@ -135,35 +135,74 @@ class SettingsActivity : AppCompatActivity(),
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
 
             return when (preference.key) {
-                 TimerType.POMODORO.ringToneKey, TimerType.REST.ringToneKey -> {
-
-                     TimerType[preference.key]!!.also {timerType ->
-
-                         Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-                             .apply {
-                                 putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL)
-                                 putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
-                                 putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-
-                                 Alarms(requireContext()).getPreferredRingtoneUri(timerType)?.let {ringtoneUri ->
-                                     Log.d(LOG_TAG, "onPreferenceTreeClick: found existing = $ringtoneUri")
-                                     putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtoneUri)
-
-                                 } ?: Log.d(LOG_TAG, "onPreferenceTreeClick: found no existing ringtone")
-
-                                 startActivityForResult(this, timerType.requestCode)
-                             }
-                     }
-
-                     true   // return value
-                }
-
                 getString(R.string.consent_pref_key) -> {
                     (requireActivity() as SettingsActivity).admobLoader.showAdsConsentForm { isPersonalizedConsent ->
                         preference.summary = getString(if (isPersonalizedConsent) R.string.consent_pref_summary_personalized else R.string.consent_pref_summary_non_personalized)
                     }
                     true
                 }
+                else -> super.onPreferenceTreeClick(preference)
+            }
+        }
+    }
+
+    /**
+     * 2nd level fragment for alerts related prefs
+     */
+    class SettingsAlertsFragment : PreferenceFragmentCompat() {
+
+        /**
+         * The 2 ringtones used preference summaries come from the ringtone titles
+         * Consent in EU only
+         */
+        override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            addPreferencesFromResource(R.xml.alerts_preferences)
+
+            Alarms(requireContext()).also { alarms ->
+
+                for (timerType in TimerType.values()) {
+                    findPreference<Preference>(timerType.ringToneKey)?.let { pref ->
+                        try {
+                            pref.summary = RingtoneManager.getRingtone(context, alarms.getPreferredRingtoneUri(timerType)).getTitle(context)
+                        }
+                        catch (e: Exception) {
+                            Log.w(LOG_TAG, "onCreatePreferences: could not load pomodoro ringtone")
+                            pref.summary = "?"
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Tapping a ringtone preference brings up the system picker, the result is evaluated below in onActivityResult()
+         */
+        override fun onPreferenceTreeClick(preference: Preference): Boolean {
+
+            return when (preference.key) {
+                TimerType.POMODORO.ringToneKey, TimerType.REST.ringToneKey -> {
+
+                    TimerType[preference.key]!!.also {timerType ->
+
+                        Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+                            .apply {
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+
+                                Alarms(requireContext()).getPreferredRingtoneUri(timerType)?.let {ringtoneUri ->
+                                    Log.d(LOG_TAG, "onPreferenceTreeClick: found existing = $ringtoneUri")
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtoneUri)
+
+                                } ?: Log.d(LOG_TAG, "onPreferenceTreeClick: found no existing ringtone")
+
+                                startActivityForResult(this, timerType.requestCode)
+                            }
+                    }
+
+                    true   // return value
+                }
+
                 else -> super.onPreferenceTreeClick(preference)
             }
         }
@@ -176,14 +215,14 @@ class SettingsActivity : AppCompatActivity(),
 
                         val ringtoneUri: Uri? = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
                         ringtoneUri?.run {
-                                Log.d(LOG_TAG, "onActivityResult: set ringtone uri=$ringtoneUri on $timerType")
+                            Log.d(LOG_TAG, "onActivityResult: set ringtone uri=$ringtoneUri on $timerType")
 
-                                setPreferredRingtone(timerType, ringtoneUri)
+                            setPreferredRingtone(timerType, ringtoneUri)
 
-                                findPreference<Preference>(timerType.ringToneKey)?.summary =
-                                    RingtoneManager.getRingtone(context, ringtoneUri).getTitle(context)
+                            findPreference<Preference>(timerType.ringToneKey)?.summary =
+                                RingtoneManager.getRingtone(context, ringtoneUri).getTitle(context)
 
-                            } ?: Log.d(LOG_TAG, "onActivityResult ringtone returned is null, do nothing")
+                        } ?: Log.d(LOG_TAG, "onActivityResult ringtone returned is null, do nothing")
                     }
                 }
 

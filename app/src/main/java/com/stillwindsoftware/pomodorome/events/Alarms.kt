@@ -38,6 +38,7 @@ class Alarms(private val context: Context) {
         internal const val REQ_CODE_PAUSE = 88877
         internal const val REQ_CODE_RESTART = 88866
         internal const val REQ_CODE_OPEN_FROM_NOTIFICATION = 88855
+        internal const val REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT = 88844
         internal const val DATA_ALARM_TRIGGER_FOR_TYPE = "alarm_for_type"
         internal const val DATA_ALARM_TRIGGER_MILLIS = "alarm_trigger_millis"
         private const val ALARM_SOUND_MILLIS = 5000L
@@ -124,7 +125,7 @@ class Alarms(private val context: Context) {
                     (context.getSystemService(VIBRATOR_SERVICE) as Vibrator)
                         .also {
                             if (Build.VERSION.SDK_INT >= 26) {
-                                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE));
+                                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                             }
                             else {
                                 @Suppress("DEPRECATION")
@@ -227,7 +228,12 @@ class AlarmReceiver : BroadcastReceiver() {
                 }
 
                 // show the user a notification as the activity is not in foreground (or the broadcast would've been cancelled)
-                Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
+                // (only if the preference allows notifications though)
+                PreferenceManager.getDefaultSharedPreferences(context).also { sharedPrefs ->
+                    if (sharedPrefs.getBoolean(context.getString(R.string.notifications_on_pref_key), true)) {
+                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
+                    }
+                }
             }
             Alarms.REQ_CODE_PAUSE -> {
                 // user pressed pause from the notification, cancel further alarms
@@ -239,7 +245,14 @@ class AlarmReceiver : BroadcastReceiver() {
                     withTimerIOThread(context, update = true) {
                         Log.d(LOG_TAG, "onReceive: pause and update notification timer=${it}")
                         it.pause()
-                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PAUSED)
+
+                        // it could be that a notification is already present when the user changes
+                        // the preference to disallow them (hard to see how, but just in case...)
+                        PreferenceManager.getDefaultSharedPreferences(context).also { sharedPrefs ->
+                            if (sharedPrefs.getBoolean(context.getString(R.string.notifications_on_pref_key), true)) {
+                                Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PAUSED)
+                            }
+                        }
                     }
                 }
             }
@@ -254,7 +267,6 @@ class AlarmReceiver : BroadcastReceiver() {
                         Log.d(LOG_TAG, "onReceive: restart and update notification timer=${it}")
                         it.start()
                         Alarms(context).setBackgroundAlarm(it)
-//                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
                     }
                 }
             }

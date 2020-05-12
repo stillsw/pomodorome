@@ -49,7 +49,7 @@
             app:layout_constraintBottom_toTopOf="@id/timer_divider"
             app:layout_constraintLeft_toLeftOf="@id/timer_gui"
             app:layout_constraintRight_toRightOf="@id/timer_gui"
-            android:background="@color/restReminderBackground"
+            android:background="@drawable/reminder_text_background"
             />
 
         <com.stillwindsoftware.pomodorome.customviews.TimerGui

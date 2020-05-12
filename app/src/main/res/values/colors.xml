@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#008577</color>
-    <color name="colorPrimaryDark">#00574B</color>
+    <color name="colorPrimary">#6C7DCB</color>
+    <color name="colorPrimaryDark">#2B335A</color>
     <color name="colorAccent">#f04d26</color>
-    <color name="backgroundPaused">#99cad3</color>
-    <color name="backgroundExpired">#f04d26</color>
     <color name="timerText">@android:color/white</color>
-    <color name="timePickerBezel">#0a3c5d</color>
+    <color name="timePickerBezel">@color/colorPrimaryDark</color>
     <color name="timePickerWork">#f68a61</color>
-    <color name="timePickerRest">#408060</color>
+    <color name="timePickerRest">#5261A5</color>
     <color name="timeElapsing">#f57c9b</color>
-    <color name="timePickerBackground">#145e90</color>
+    <color name="timePickerBackground">#38447E</color>
     <color name="timePickerDivisionsBackground">#eceff1</color>
     <color name="timePickerDivisions">@color/timePickerBackground</color>
     <color name="restReminderBackground">@color/colorPrimary</color>

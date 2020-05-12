@@ -1,23 +1,24 @@
 package com.stillwindsoftware.pomodorome.events
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
+import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.preference.PreferenceManager
 import com.stillwindsoftware.pomodorome.MainActivity
 import com.stillwindsoftware.pomodorome.R
+import com.stillwindsoftware.pomodorome.RemindersHelper
 import com.stillwindsoftware.pomodorome.db.TimerState
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms.Companion.DATA_ALARM_TRIGGER_FOR_TYPE
 import com.stillwindsoftware.pomodorome.events.Alarms.Companion.DATA_ALARM_TRIGGER_MILLIS
 import com.stillwindsoftware.pomodorome.events.Alarms.Companion.REQ_CODE
 import com.stillwindsoftware.pomodorome.events.Alarms.Companion.REQ_CODE_NOTIFICATION
+import com.stillwindsoftware.pomodorome.events.Alarms.Companion.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT
 import com.stillwindsoftware.pomodorome.events.Alarms.Companion.REQ_CODE_PAUSE
 import com.stillwindsoftware.pomodorome.events.Alarms.Companion.REQ_CODE_RESTART
 
@@ -27,6 +28,7 @@ import com.stillwindsoftware.pomodorome.events.Alarms.Companion.REQ_CODE_RESTART
 class Notifications(private val context: Context) {
 
     companion object {
+        @Suppress("unused")
         private const val LOG_TAG = "Notifications"
         private const val NOTIFICATION_CHANNEL_ID = "Pomodoro Me"
         private const val NOTIFICATION_ID = 2
@@ -64,9 +66,16 @@ class Notifications(private val context: Context) {
                 }
 
                 // to get the notification to show on the lock screen, but only for rest time
-                if (currentState == TimerState.PLAYING && timerType == TimerType.REST) {
-                    builder.setFullScreenIntent(PendingIntent.getActivity(context, 0,
-                        Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT), true)
+                // and if the preference allows it
+                PreferenceManager.getDefaultSharedPreferences(context).also { sharedPrefs ->
+                    if (sharedPrefs.getBoolean(context.getString(R.string.notifications_wake_up_pref_key), true)
+                        && currentState == TimerState.PLAYING && timerType == TimerType.REST) {
+
+                        builder.setFullScreenIntent(PendingIntent.getActivity(context, 0,
+                            Intent(context, MainActivity::class.java)
+                                .apply { putExtra(REQ_CODE, REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) }
+                            , PendingIntent.FLAG_ONE_SHOT), true)
+                    }
                 }
 
                 NotificationManagerCompat.from(context)
@@ -82,15 +91,11 @@ class Notifications(private val context: Context) {
      */
     private fun getNotificationMessage(currentState: TimerState, timerType: TimerType): String {
 
-
-
-        return context.getString(
-            when {
-                currentState == TimerState.PAUSED -> R.string.notification_paused
-                timerType == TimerType.REST -> R.string.notification_pomodoro
-                else -> R.string.notification_rest
-            }
-        )
+        return when {
+            currentState == TimerState.PAUSED -> context.getString(R.string.notification_paused)
+            timerType == TimerType.REST -> context.getString(R.string.notification_pomodoro, RemindersHelper(context).getNextReminder(true))
+            else -> context.getString(R.string.notification_rest)
+        }
     }
 
     private fun makePendingIntentForAlarmReceiver(reqCode: Int, timerType: TimerType, triggerAtMillis: Long): PendingIntent {

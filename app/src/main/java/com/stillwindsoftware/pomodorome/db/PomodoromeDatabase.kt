@@ -4,8 +4,11 @@ import com.stillwindsoftware.pomodorome.R
 import android.content.Context
 import androidx.room.*
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.stillwindsoftware.pomodorome.RemindersHelper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The database instance
@@ -77,7 +80,17 @@ abstract class PomodoromeDatabase : RoomDatabase() {
             remindersDao.insert(*context.resources.getStringArray(R.array.default_reminders)
                 // only the first 3 are selected by default
                 .mapIndexed { index, it -> Reminder(null, it, index < 3) }
-                .toTypedArray())
+                .toTypedArray()
+            )
+
+            // put the selected reminders into shared preferences, so the notifications can access them
+            // running on the main thread, so avoid a delay by launching another co-routine
+
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    RemindersHelper(context).refreshList(remindersDao.getRemindersDirectly())
+                }
+            }
         }
     }
 }

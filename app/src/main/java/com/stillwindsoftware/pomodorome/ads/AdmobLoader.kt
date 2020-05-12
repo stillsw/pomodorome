@@ -5,6 +5,8 @@ import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
+import android.view.View
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
@@ -36,7 +38,7 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
 
     companion object {
         private const val LOG_TAG = "AdmobLoader"
-        private const val NEXUS_7_DEVICE = "DC0C4EA1C6127311CAC9C8F9ECC1898C"
+        private const val NEXUS_7_DEVICE = "E590725CEA6AC3E836A5E8D767A86882"
         private const val GALAXY_NEXUS_DEVICE = "F830B9C9F5CFF00A9D43B83572557041"
         private const val SWSW_DATA_CONSENT_POLICY_URL = "https://sites.google.com/view/stillwindswag/data-policy"
         private const val ADMOB_PUB_ID = "pub-1327712413378636"
@@ -96,11 +98,6 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
         // retest it's needed (could've been handled in the settings screen)
 
         return if (testConsentStatus(ConsentInformation.getInstance(activity.baseContext).consentStatus)) {
-//            try {
-//                Toast.makeText(activity, activity.getString(R.string.wait_for_consent_form), Toast.LENGTH_LONG).show()
-//            } catch (e: Exception) { // can fail if there's no delay, the window token isn't valid
-//                Log.d(LOG_TAG, "isTriggerConsentForm: Unable to show toast, hopefully because the consent form loaded immediately")
-//            }
             showAdsConsentForm(null)
             true
         } else {
@@ -140,6 +137,19 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
         }
 
         adView!!.loadAd(AdRequest.Builder().build())
+
+        adView.adListener = object : AdListener() {
+            override fun onAdLoaded() {
+
+                // reset the size of the parent frame layout for the ad now it's loaded
+
+                (adView.parent as FrameLayout).apply {
+                    val lp = layoutParams
+                    lp.height = FrameLayout.LayoutParams.WRAP_CONTENT
+                    layoutParams = lp
+                }
+            }
+        }
     }
 
     /**

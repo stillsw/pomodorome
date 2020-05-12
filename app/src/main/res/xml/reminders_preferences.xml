@@ -23,6 +23,13 @@
             app:defaultValue="true"
             />
 
+        <SwitchPreferenceCompat
+            app:key="@string/notifications_wake_up_pref_key"
+            app:title="@string/notifications_wake_up_title"
+            app:summary="@string/notifications_wake_up_summary"
+            app:defaultValue="true"
+            />
+
     </PreferenceCategory>
 
 

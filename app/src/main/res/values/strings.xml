@@ -1,12 +1,10 @@
 <resources>
     <string name="app_name">Pomodoro Me</string>
-    <string name="rest_prompt">🛀🏽️</string>
-    <string name="work_prompt">🧑🏽‍💻</string>
     <string name="notification_button_restart">Resume Timing</string>
     <string name="notification_button_pause">Pause Timing</string>
     <string name="notification_paused">Timing paused</string>
-    <string name="notification_pomodoro">In rest time</string>
-    <string name="notification_rest">In pomodoro time</string>
+    <string name="notification_pomodoro">Rest time - %1$s</string>
+    <string name="notification_rest">Pomodoro time</string>
     <string name="consent_form_show_error">Form failed, are you connected to the internet?</string>
 
     <!-- Preferences -->
@@ -25,6 +23,10 @@
     <string name="alerts_vibrate">Vibrate</string>
     <string name="ringtone_pref_title_POMODORO">Pomodoro time</string>
     <string name="ringtone_pref_title_REST">Rest time</string>
+    <string name="notifications_on_title">Send notifications</string>
+    <string name="notifications_on_summary">When app is not visible</string>
+    <string name="notifications_wake_up_title">Wake up from sleep</string>
+    <string name="notifications_wake_up_summary">Depends on device settings</string>
 
     <string name="reminders_title">Rest Time Reminders</string>
     <string name="show_reminders_title">Show in Rest time</string>
@@ -37,7 +39,7 @@
     <string name="undo_delete_reminder">Undo</string>
 
     <string-array name="default_reminders">
-        <item>Have a break</item>
+        <item>Take a break</item>
         <item>Move your body</item>
         <item>Rest your eyes</item>
         <item>Do some exercise</item>
@@ -67,6 +69,8 @@
     <string name="showReminders_pref_key" translatable="false">com.stillwindsoftware.pomodorome.show_reminders</string>
     <string name="showReminders_random_pref_key" translatable="false">com.stillwindsoftware.pomodorome.random_reminders</string>
     <string name="showReminders_list_pref_key" translatable="false">com.stillwindsoftware.pomodorome.list_reminders</string>
+    <string name="notifications_on_pref_key" translatable="false">com.stillwindsoftware.pomodorome.alert_notify</string>
+    <string name="notifications_wake_up_pref_key" translatable="false">com.stillwindsoftware.pomodorome.alert_wakeup</string>
 
     <string name="admob_app_id" translatable="false">ca-app-pub-1327712413378636~2290792975</string>
     <string name="admob_banner_id" translatable="false">ca-app-pub-1327712413378636/3692053297</string>

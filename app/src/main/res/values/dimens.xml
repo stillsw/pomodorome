@@ -11,11 +11,13 @@
     <dimen name="time_picker_background_shadow">3dp</dimen>
     <dimen name="time_picker_max_thumb_radius">30dp</dimen>
     <dimen name="timer_text_horizontal_margin">4dp</dimen>
-    <dimen name="timer_text_size">28sp</dimen>
-    <dimen name="timer_emoji_size">30dp</dimen>
+    <dimen name="timer_text_size">32dp</dimen>
     <dimen name="timer_elevation">15dp</dimen>
     <dimen name="timer_other_views_elevation">16dp</dimen>
     <dimen name="rest_reminder_elevation">20dp</dimen>
     <dimen name="rest_reminder_padding">10dp</dimen>
+    <dimen name="rest_reminder_corner">8dp</dimen>
     <dimen name="text_margin">16dp</dimen>
+    <!-- debugging info -->
+    <string name="dimen_bucket">less than 600dp</string>
 </resources>

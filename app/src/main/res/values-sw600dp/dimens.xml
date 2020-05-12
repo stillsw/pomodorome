@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dimen_bucket">600dp</string>
+    <dimen name="timer_text_size">48dp</dimen>
+</resources>

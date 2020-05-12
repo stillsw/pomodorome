@@ -1,11 +1,15 @@
 package com.stillwindsoftware.pomodorome
 
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import android.widget.FrameLayout
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
@@ -84,6 +88,33 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         EmojiHelper.initEmojis(applicationContext)
 
+        // provided the preference allows it, attempt to have the activity show in front of the lock screen,
+        // test the intent to see that's where it's come from
+        intent?.let {
+            PreferenceManager.getDefaultSharedPreferences(this).also { sharedPrefs ->
+                if (sharedPrefs.getBoolean(getString(R.string.notifications_wake_up_pref_key), true)
+                    && it.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
+
+                    Log.d(LOG_TAG, "onCreate: notification from lock screen, turn on and set to show")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                        setShowWhenLocked(true)
+                        setTurnScreenOn(true)
+                        // fairly sure this is going to work inconsistently across devices
+                        (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).requestDismissKeyguard(this, null)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        // experimentation suggests this does work as hoped, the activity shows in front of the lock screen and after
+                        // dismissing it, it goes back to locked, dismiss keyguard might not add anything, but leave it in
+                        // in case of differences in devices
+                        this.window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                        )
+                    }
+                }
+            }
+        }
+
         val binding : ActivityMainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
         binding.viewmodel = timerViewModel
@@ -144,19 +175,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Background alarm and notification canceled, here rather than in onStop() because the
-     * notification may start this activity to show
-     * wake up on the notification, the drawback is the drain on the battery to keep a
-     * background alarm going.
+     * Background alarm and notification canceled, here as well as in onStart() because the
+     * notification may start this activity when wake up on the notification
      */
     override fun dispatchTouchEvent(event: MotionEvent?): Boolean {
         val ret = super.dispatchTouchEvent(event)
-        if (event?.action == MotionEvent.ACTION_DOWN) {
+        if (event?.action == MotionEvent.ACTION_DOWN && intent?.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
             Log.d(LOG_TAG, "dispatchTouchEvent: action down, cancel background alarm and notification")
             alarms.cancelBackgroundAlarm()
             Notifications(this).cancelNotifications()
         }
         return ret
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        // from the lock screen don't cancel alarm/notifications
+        intent?.let {
+                if (it.getIntExtra(Alarms.REQ_CODE, -1) != Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
+                    Log.d(LOG_TAG, "onStart: not started from lock screen, cancel background alarm and notification")
+                    alarms.cancelBackgroundAlarm()
+                    Notifications(this).cancelNotifications()
+                }
+            }
     }
 
     /**
@@ -165,7 +207,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
 
-        with(timerViewModel.getActiveTimer()) {
+        timerViewModel.getActiveTimer()?.run {
             if (isPlaying()) {
                 alarms.setBackgroundAlarm(this)
                 setKeepScreenOnWhileRunning(false)
@@ -239,11 +281,11 @@ class MainActivity : AppCompatActivity() {
      * Called when a timer expires, so if it's rest time it resets the timing of the
      * reminder text view
      */
-    private fun startReminderText(timerType: TimerType) {
+    private fun startReminderText(timerType: TimerType): Boolean {
         if (!PreferenceManager.getDefaultSharedPreferences(this)
-                .getBoolean(getString(R.string.showReminders_pref_key), false)) {
-            Log.d(LOG_TAG, "startReminderText: preference is not to show reminder prompt")
-            return
+                .getBoolean(getString(R.string.showReminders_pref_key), true)) {
+            Log.v(LOG_TAG, "startReminderText: preference is not to show reminder prompt")
+            return false
         }
 
         if (timerType == TimerType.REST ) {
@@ -255,6 +297,8 @@ class MainActivity : AppCompatActivity() {
         else {
             rest_reminder.visibility = View.GONE
         }
+
+        return true
     }
 
     /**
@@ -265,8 +309,8 @@ class MainActivity : AppCompatActivity() {
         // in case the activity starts mid rest time and the prompt isn't visible yet
         val startsInvisible = rest_reminder.visibility != View.VISIBLE
 
-        if (startsInvisible) {
-            startReminderText(TimerType.REST)
+        if (startsInvisible && !startReminderText(TimerType.REST)) {
+            return // didn't set to visible so don't continue
         }
 
         // use the progress within a minute to get a y value from sine
@@ -299,7 +343,7 @@ class MainActivity : AppCompatActivity() {
         // currently in editing needs to transition out
         timer_gui.transitionOutOfEditing()
 
-        timerViewModel.getActiveTimer().also { timer ->
+        timerViewModel.getActiveTimer()?.also { timer ->
 
             // check for ads consent form triggered
             if (!timer.isPlaying() && ++playClicksMade > PLAY_CLICKS_BEFORE_ADS_CONSENT && admobLoader.isTriggerConsentForm(timer)) {
@@ -328,7 +372,7 @@ class MainActivity : AppCompatActivity() {
     fun editStopPressed(@Suppress("UNUSED_PARAMETER") view: View) {
 
         // choose edit... only allowed to edit from stopped
-        if (timerViewModel.getActiveTimer().isStopped()) {
+        if (timerViewModel.getActiveTimer()!!.isStopped()) {
             timer_gui.editTimers()             // start transition
             edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
             timerViewModel.edit()
@@ -338,11 +382,13 @@ class MainActivity : AppCompatActivity() {
             edit_button.setImageDrawable(stopToPencilDrawable.also { it.start() })
 
             // playing means the current button is showing pause icon, change to play
-            if (timerViewModel.getActiveTimer().isPlaying()) {
+            if (timerViewModel.getActiveTimer()!!.isPlaying()) {
                 play_button.setImageDrawable(pauseToPlayDrawable.also { it.start() })
             }
 
             timerViewModel.stop()
+
+            rest_reminder.visibility = View.GONE
         }
     }
 
@@ -379,4 +425,5 @@ class MainActivity : AppCompatActivity() {
     private fun setStateForConsentFormOpen(isOpening: Boolean) {
         fade_out.visibility = if (isOpening) View.VISIBLE else View.GONE
     }
+
 }
