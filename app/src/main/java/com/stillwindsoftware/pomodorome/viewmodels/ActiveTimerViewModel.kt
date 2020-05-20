@@ -3,6 +3,7 @@ package com.stillwindsoftware.pomodorome.viewmodels
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
+import com.stillwindsoftware.pomodorome.db.TimerState
 import kotlinx.coroutines.launch
 
 /**
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(application) {
 
     companion object {
+        @Suppress("unused")
         private const val LOG_TAG = "ActiveTimerViewModel"
     }
 
@@ -20,7 +22,10 @@ class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(appli
      * Also detects any change that is to a playing timer and notifies the alarm manager
      * (updates it, changes it to another state, changes from another state to playing)
     */
-    private fun update(activeTimer: ActiveTimer) = viewModelScope.launch {
+    private fun update(activeTimer: ActiveTimer, func: ((ActiveTimer) -> Unit)? = null) = viewModelScope.launch {
+        if (func != null) {
+            func(activeTimer)
+        }
         repository.update(activeTimer)
     }
 
@@ -40,28 +45,24 @@ class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(appli
         }
     }
 
-    fun toggleStartPause(): Boolean {
-        var isStart = true
+    fun toggleStartPauseToState(): TimerState {
 
-        repository.timer.value!!.also {
-            if (it.isPlaying()) {
-                it.pause()
-                isStart = false
+         (repository.timer.value!!).also {activeTimer ->
+            return if (activeTimer.isPlaying()) {
+                update(activeTimer) { it.pause(getApplication()) }
+                TimerState.PAUSED
             }
             else {
-                it.start()
+                update(activeTimer) { it.start(getApplication()) }
+                TimerState.PLAYING
             }
-            update(it)
-
         }
-
-        return isStart
     }
 
     fun stop() {
         repository.timer.value!!.also {
             if (!it.isStopped()) {
-                it.stop()
+                it.stop(getApplication())
                 update(it)
             }
         }

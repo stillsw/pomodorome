@@ -3,8 +3,11 @@
     <string name="notification_button_restart">Resume Timing</string>
     <string name="notification_button_pause">Pause Timing</string>
     <string name="notification_paused">Timing paused</string>
-    <string name="notification_pomodoro">Rest time - %1$s</string>
+    <string name="notification_pomodoro">Remember to %1$s</string>
     <string name="notification_rest">Pomodoro time</string>
+    <string name="notification_auto_start_prompt">Start Pomodoro timing?</string>
+    <string name="snack_and_notification_auto_stopped">Reached end of timing for today</string>
+    <string name="snack_dismiss">Dismiss</string>
     <string name="consent_form_show_error">Form failed, are you connected to the internet?</string>
 
     <!-- Preferences -->

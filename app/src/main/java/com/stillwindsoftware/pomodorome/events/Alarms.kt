@@ -39,6 +39,9 @@ class Alarms(private val context: Context) {
         internal const val REQ_CODE_RESTART = 88866
         internal const val REQ_CODE_OPEN_FROM_NOTIFICATION = 88855
         internal const val REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT = 88844
+        internal const val REQ_CODE_AUTO_START = 88830
+        internal const val REQ_CODE_AUTO_STOP = 88831
+        internal const val REQ_CODE_AUTO_START_YES = 88832
         internal const val DATA_ALARM_TRIGGER_FOR_TYPE = "alarm_for_type"
         internal const val DATA_ALARM_TRIGGER_MILLIS = "alarm_trigger_millis"
         private const val ALARM_SOUND_MILLIS = 5000L
@@ -46,30 +49,66 @@ class Alarms(private val context: Context) {
 
     /**
      * Called from MainActivity.onStop() only if the timer is playing
+     * and from when the alarms receiver gets a regular alarm, so to set the next one
      * The idea is while the app is not being used a background alarm is scheduled which
      * will cause a notification to fire (see AlarmReceiver below)
+     * AutoStartStopHelper also calls this method if one of the relevant preferences changes
+     * in that case the param is to false because the logic is already taking that into account
      */
-    fun setBackgroundAlarm(activeTimer: ActiveTimer) {
+    fun setRegularBackgroundAlarm(activeTimer: ActiveTimer, checkForOverlapWithAuto: Boolean = true) {
+
+        cancelBackgroundAlarm(REQ_CODE_ALARM) // resetting, if there is already an alarm
 
         if (activeTimer.isPlaying()) {
             val now = System.currentTimeMillis()
 
-            activeTimer.getMillisTillNextEvent(now)?.let { (timerType, millisTillNext) ->
+            activeTimer.getMillisTillNextEvent(now)?.also { (timerType, millisTillNext) ->
 
-                registerBackgroundAlarm(timerType, now + millisTillNext)
+                if (checkForOverlapWithAuto && AutoStartStopHelper(context).isAutoStopBeforeTime(millisTillNext)) {
+                    Log.d(LOG_TAG, "setRegularBackgroundAlarm: not setting alarm as auto stop occurs before would be due")
+                }
+                else {
+                    registerBackgroundAlarm(timerType, now + millisTillNext)
 
-                // format just to log nicely, for efficiency only do it in debug
-                if (BuildConfig.DEBUG) {
-                    with(SimpleDateFormat("mm:ss", Locale.US)
-                        .apply { timeZone = TimeZone.getTimeZone("GMT") }
-                        .format(millisTillNext)) {
-                        Log.d(LOG_TAG, "setAlarm: register alarm for $this $timerType")
+                    // format just to log nicely, for efficiency only do it in debug
+                    if (BuildConfig.DEBUG) {
+                        Log.d(LOG_TAG, "setRegularBackgroundAlarm: register alarm for ${formatTimeForDebug(millisTillNext)} $timerType")
                     }
                 }
             }
         }
         else {
             Log.w(LOG_TAG, "setAlarm: called in error, state is not playing (${activeTimer.timerState})")
+        }
+    }
+
+    private fun formatTimeForDebug(millis: Long) = SimpleDateFormat("HH:mm:ss", Locale.US)
+            .format(millis)
+
+    /**
+     * Called from AutoStartStopHelper.scheduleAutoAlarm()
+     */
+    fun setAutoStartStopAlarm(which: Int, triggerAtMillis: Long) {
+
+        Log.d(LOG_TAG, "setAutoStartStopAlarm: cancel and set new auto alarm ($which)")
+
+        // cancel existing first
+        cancelBackgroundAlarm(which)
+
+        try {
+            (context.getSystemService(ALARM_SERVICE) as AlarmManager)
+                .setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis,
+                    PendingIntent.getBroadcast(context, which,
+                        Intent(context, AlarmReceiver::class.java).apply { putExtra(REQ_CODE, which) },
+                        PendingIntent.FLAG_UPDATE_CURRENT))
+
+            // format just to log nicely, for efficiency only do it in debug
+            if (BuildConfig.DEBUG) {
+                Log.d(LOG_TAG, "setAutoStartStopAlarm: registered alarm for auto alarm at ${formatTimeForDebug(triggerAtMillis)}")
+            }
+        }
+        catch (e: Exception) {
+            Log.d(LOG_TAG, "setAutoStartStopAlarm: failed with exception", e)
         }
     }
 
@@ -94,13 +133,14 @@ class Alarms(private val context: Context) {
     }
 
     /**
-     * Called when when the user touches the screen after onStart(),
+     * Called when when the user touches the screen after onStart(), regular
      * alarms should only fire while running in the background
+     * And also during scheduling of auto start/stop (see AutoStartStopHelper)
      */
-    fun cancelBackgroundAlarm() {
+    fun cancelBackgroundAlarm(which: Int) {
         try {
             with(context.getSystemService(ALARM_SERVICE) as AlarmManager) {
-                cancel(PendingIntent.getBroadcast(context, REQ_CODE_ALARM, Intent(context, AlarmReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT))
+                cancel(PendingIntent.getBroadcast(context, which, Intent(context, AlarmReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT))
                 Log.d(LOG_TAG, "cancelBackgroundAlarm: done")
             }
         }
@@ -207,7 +247,7 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
 
         val triggerAtMillis = intent.getLongExtra(Alarms.DATA_ALARM_TRIGGER_MILLIS, -1L)
-        val timerType = TimerType.valueOf(intent.getStringExtra(Alarms.DATA_ALARM_TRIGGER_FOR_TYPE)!!)
+        val timerType: TimerType? = if (intent.hasExtra(Alarms.DATA_ALARM_TRIGGER_FOR_TYPE)) TimerType.valueOf(intent.getStringExtra(Alarms.DATA_ALARM_TRIGGER_FOR_TYPE)!!) else null
 
         when (intent.getIntExtra(Alarms.REQ_CODE, -1)) {
             Alarms.REQ_CODE_ALARM -> {
@@ -216,16 +256,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 val elapsedSinceTrigger = (System.currentTimeMillis() - triggerAtMillis) / 1000f
                 Log.d(LOG_TAG, "onReceive: backgroundAlarm for ($timerType) triggered $elapsedSinceTrigger seconds ago")
 
-                MainScope().launch {
-                    Alarms(context).apply {
-                        playAlarm(timerType)
-
-                        withTimerIOThread(context) {
-                            Log.d(LOG_TAG, "onReceive: setup next background alarm: timer=${it}")
-                            setBackgroundAlarm(it)
-                        }
-                    }
-                }
+                doAlarm(context, timerType!!)
 
                 // show the user a notification as the activity is not in foreground (or the broadcast would've been cancelled)
                 // (only if the preference allows notifications though)
@@ -239,48 +270,88 @@ class AlarmReceiver : BroadcastReceiver() {
                 // user pressed pause from the notification, cancel further alarms
                 // because the alarm will have triggered a repeat
 
-                Alarms(context).cancelBackgroundAlarm()
+                Alarms(context).cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
 
                 MainScope().launch {
                     withTimerIOThread(context, update = true) {
                         Log.d(LOG_TAG, "onReceive: pause and update notification timer=${it}")
-                        it.pause()
+                        it.pause(context)
 
                         // it could be that a notification is already present when the user changes
                         // the preference to disallow them (hard to see how, but just in case...)
                         PreferenceManager.getDefaultSharedPreferences(context).also { sharedPrefs ->
                             if (sharedPrefs.getBoolean(context.getString(R.string.notifications_on_pref_key), true)) {
-                                Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PAUSED)
+                                Notifications(context).sendNotification(timerType!!, triggerAtMillis, TimerState.PAUSED)
                             }
                         }
                     }
                 }
             }
             Alarms.REQ_CODE_RESTART -> {
-                // user pressed restart from the notification, cancel the notification
-                // and set the alarm for when it next needs to wake up
-
-                Notifications(context).cancelNotifications()
-
-                MainScope().launch {
-                    withTimerIOThread(context, update = true) {
-                        Log.d(LOG_TAG, "onReceive: restart and update notification timer=${it}")
-                        it.start()
-                        Alarms(context).setBackgroundAlarm(it)
-                    }
-                }
+                Log.d(LOG_TAG, "onReceive: restart and update notification")
+                restartTiming(context)
             }
             Alarms.REQ_CODE_NOTIFICATION -> {
                 // user pressed on the notification itself, goto activity
-
-                Notifications(context).cancelNotifications()
                 Log.d(LOG_TAG, "onReceive: from sendNotification: start activity")
-                context.startActivity(Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                    putExtra(Alarms.REQ_CODE, Alarms.REQ_CODE_OPEN_FROM_NOTIFICATION)
-                })
+                gotoActivity(context)
+            }
+            Alarms.REQ_CODE_AUTO_START -> {
+                Log.d(LOG_TAG, "onReceive: from sendNotification: process auto start")
+                AutoStartStopHelper(context).onAutoStartAlarm()
+                doAlarm(context, TimerType.POMODORO, repeating = false)
+            }
+            Alarms.REQ_CODE_AUTO_START_YES -> {
+                Log.d(LOG_TAG, "onReceive: from sendNotification: answer yes to auto start")
+                restartTiming(context)
+                gotoActivity(context)
+            }
+            Alarms.REQ_CODE_AUTO_STOP -> {
+                Log.d(LOG_TAG, "onReceive: from sendNotification: process auto stop")
+                AutoStartStopHelper(context).onAutoStopAlarm()
+                doAlarm(context, TimerType.REST, repeating = false)
             }
             else -> Log.d(LOG_TAG, "onReceive: sendNotification: request code not recognized")
+        }
+    }
+
+    private fun restartTiming(context: Context) {
+        // user pressed restart from the notification, cancel the notification
+        // and set the alarm for when it next needs to wake up
+        Notifications(context).cancelNotifications()
+
+        MainScope().launch {
+            withTimerIOThread(context, update = true) {
+                it.start(context)
+                Alarms(context).setRegularBackgroundAlarm(it)
+            }
+        }
+    }
+
+    private fun gotoActivity(context: Context) {
+        Notifications(context).cancelNotifications()
+        context.startActivity(Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(Alarms.REQ_CODE, Alarms.REQ_CODE_OPEN_FROM_NOTIFICATION)
+        })
+    }
+
+    /**
+     * Calls the Alarm method to play the sound, or vibrate
+     * in the case of regular alarm also schedules the next one
+     */
+    private fun doAlarm(context: Context, timerType: TimerType, repeating: Boolean = true) {
+        MainScope().launch {
+            Alarms(context).apply {
+                playAlarm(timerType)
+
+                if (repeating) {
+                    withTimerIOThread(context) {
+                        Log.d(LOG_TAG, "onReceive: setup next background alarm: timer=${it}")
+                        setRegularBackgroundAlarm(it)
+                    }
+                }
+            }
         }
     }
 

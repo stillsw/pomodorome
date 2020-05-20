@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:name="group"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:name="pencil"
+            android:pathData="M 3.442 20.558 L 6.934 20.514 L 16.779 10.601 L 13.391 7.368 L 3.442 17.013 Z"
+            android:fillColor="#ffffff"
+            android:strokeColor="#ffffff"
+            android:strokeWidth="1"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+        <path
+            android:name="eraser"
+            android:pathData="M 17.255 3.487 L 20.653 6.838 L 18.325 9.164 L 14.885 5.867 Z"
+            android:fillColor="#ffffff"
+            android:strokeColor="#ffffff"
+            android:strokeWidth="1"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+    </group>
+</vector>

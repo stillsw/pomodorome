@@ -14,6 +14,7 @@ import androidx.preference.*
 import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 import com.stillwindsoftware.pomodorome.db.TimerType
 import com.stillwindsoftware.pomodorome.events.Alarms
+import com.stillwindsoftware.pomodorome.events.AutoStartStopHelper
 import java.text.DateFormatSymbols
 import java.util.*
 import kotlin.collections.HashSet
@@ -149,6 +150,7 @@ class SettingsActivity : AppCompatActivity(),
     /**
      * 2nd level fragment for alerts related prefs
      */
+    @Suppress("unused") // actually is used, ide incorrectly decides it isn't
     class SettingsAlertsFragment : PreferenceFragmentCompat() {
 
         /**
@@ -287,6 +289,12 @@ class SettingsActivity : AppCompatActivity(),
                         .joinToString(separator = "/")
                 }
             }
+
+            // schedule of alarm changes
+            AutoStartStopHelper(requireContext()).apply {
+                onAutoStartPreferenceChanged(sharedPreferences.getBoolean(getString(R.string.auto_start_pref_key), false))
+                onAutoStopPreferenceChanged(sharedPreferences.getBoolean(getString(R.string.auto_stop_pref_key), false))
+            }
         }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -374,36 +382,38 @@ class SettingsActivity : AppCompatActivity(),
          */
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
 
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+            val autoStartKey = getString(R.string.auto_start_time_pref_key)
+            val autoStopKey = getString(R.string.auto_stop_time_pref_key)
+
             return when (preference.key) {
-                getString(R.string.auto_start_time_pref_key),
-                getString(R.string.auto_stop_time_pref_key) -> {
-                    PreferenceManager.getDefaultSharedPreferences(context)
-                        .also{sharedPrefs ->
-                            with(sharedPrefs.getLong(preference.key, -1L)) {
-                                val hours = this / 1000L / 60L / 60L
-                                val minutes = (this / 1000L / 60L) - (hours * 60L)
+                autoStartKey, autoStopKey -> {
+                    with(sharedPrefs.getLong(preference.key, -1L)) {
+                        val hours = this / 1000L / 60L / 60L
+                        val minutes = (this / 1000L / 60L) - (hours * 60L)
 
-                                TimePickerDialog(context, { _, hour, minute ->              // listener for setting time
-                                    GregorianCalendar()
-                                        .onlyTimeMillis(hour, minute)
-                                        .also {
-                                            sharedPrefs.edit().apply {
-                                                putLong(preference.key, it)
-                                                apply()
-                                            }
+                        TimePickerDialog(context, { _, hour, minute ->              // listener for setting time
+                            GregorianCalendar()
+                                .onlyTimeMillis(hour, minute)
+                                .also {
+                                    sharedPrefs.edit().apply {
+                                        putLong(preference.key, (hour * 60L + minute) * 60000L)
+                                        apply()
+                                    }
 
-                                            val timeFormat = DateFormat.getTimeFormat(context).apply { timeZone = TimeZone.getTimeZone("GMT") }
-                                            preference.summary = timeFormat.format(it)
-                                        }
-                                }, hours.toInt(), minutes.toInt(), false).show()
-                            }
+                                    val timeFormat = DateFormat.getTimeFormat(context).apply { timeZone = TimeZone.getTimeZone("GMT") }
+                                    preference.summary = timeFormat.format(it)
 
+                                }
+                        }, hours.toInt(), minutes.toInt(), false).show()
                     }
+
                     true
                 }
                 else -> super.onPreferenceTreeClick(preference)
             }
         }
+
     }
 
     /**
@@ -430,14 +440,3 @@ class SettingsActivity : AppCompatActivity(),
     }
 }
 
-/**
- * Extension function sets the timezone to GMT and clears all times so only dealing with
- * the hours and minutes passed
- */
-fun GregorianCalendar.onlyTimeMillis(hours: Int, minutes: Int): Long {
-    timeZone = TimeZone.getTimeZone("GMT")
-    clear()
-    set(Calendar.HOUR_OF_DAY, hours)
-    set(Calendar.MINUTE, minutes)
-    return timeInMillis
-}

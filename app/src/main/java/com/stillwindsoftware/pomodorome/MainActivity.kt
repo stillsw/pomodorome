@@ -1,7 +1,6 @@
 package com.stillwindsoftware.pomodorome
 
 import android.app.KeyguardManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -9,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.*
-import android.widget.FrameLayout
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
@@ -17,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.gms.ads.AdView
+import com.google.android.material.snackbar.Snackbar
 import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
@@ -33,6 +32,7 @@ import java.lang.Math.toRadians
 import kotlin.math.min
 import kotlin.math.sin
 import com.stillwindsoftware.pomodorome.ads.AdmobLoader
+import com.stillwindsoftware.pomodorome.db.TimerState
 
 /**
  * Thanks to Alex Lockwood for his excellent shape shifter path morphing tool which I used
@@ -41,6 +41,8 @@ import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 class MainActivity : AppCompatActivity() {
 
     companion object {
+        var current: MainActivity? = null // singleton instance so AutoStartStopHelper can trigger
+
         @Suppress("unused")
         private const val LOG_TAG = "MainActivity"
         private const val PLAY_CLICKS_BEFORE_ADS_CONSENT = 2
@@ -49,12 +51,21 @@ class MainActivity : AppCompatActivity() {
         private var playClicksMade = 0 // for firing ads consent form
     }
 
-    // the animated vector drawables cached in onCreate() then assigned in callbackChangeToTimer
+    // the animated vector drawables are cached for animation from the button presses
+    // and then the static vector drawables assigned if necessary in callbackChangeToTimer
+    // these exist because the animated versions sometimes show the end frame when they should
+    // show the start frame, it appears to be a bug and nothing I've tried works, so in those
+    // cases just show the static image that should be shown
 
-    private lateinit var playToPauseDrawable: AnimatedVectorDrawableCompat
-    private lateinit var pauseToPlayDrawable: AnimatedVectorDrawableCompat
-    private lateinit var pencilToStopDrawable: AnimatedVectorDrawableCompat
-    private lateinit var stopToPencilDrawable: AnimatedVectorDrawableCompat
+    private val playToPauseDrawable by lazy {AnimatedVectorDrawableCompat.create(this, R.drawable.play_to_pause_avd)!! }
+    private val pauseToPlayDrawable by lazy { AnimatedVectorDrawableCompat.create(this, R.drawable.pause_to_play_avd)!! }
+    private val pencilToStopDrawable by lazy { AnimatedVectorDrawableCompat.create(this, R.drawable.pencil_to_stop_avd)!! }
+    private val stopToPencilDrawable by lazy { AnimatedVectorDrawableCompat.create(this, R.drawable.stop_to_pencil_avd)!! }
+    private val stopDrawable by lazy { getDrawable(R.drawable.stop_vd)!! }
+    private val pencilDrawable by lazy { getDrawable(R.drawable.pencil_vd)!! }
+    private val playDrawable by lazy { getDrawable(R.drawable.play_vd)!! }
+    private val pauseDrawable by lazy { getDrawable(R.drawable.pause_vd)!! }
+    private var transitioningToTimerState: TimerState? = null // handles the case where a button is pressed and want the animation to play out
 
     private var lastReminderTextDelta = Float.MAX_VALUE
 
@@ -90,30 +101,7 @@ class MainActivity : AppCompatActivity() {
 
         // provided the preference allows it, attempt to have the activity show in front of the lock screen,
         // test the intent to see that's where it's come from
-        intent?.let {
-            PreferenceManager.getDefaultSharedPreferences(this).also { sharedPrefs ->
-                if (sharedPrefs.getBoolean(getString(R.string.notifications_wake_up_pref_key), true)
-                    && it.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
-
-                    Log.d(LOG_TAG, "onCreate: notification from lock screen, turn on and set to show")
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                        setShowWhenLocked(true)
-                        setTurnScreenOn(true)
-                        // fairly sure this is going to work inconsistently across devices
-                        (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).requestDismissKeyguard(this, null)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        // experimentation suggests this does work as hoped, the activity shows in front of the lock screen and after
-                        // dismissing it, it goes back to locked, dismiss keyguard might not add anything, but leave it in
-                        // in case of differences in devices
-                        this.window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                        )
-                    }
-                }
-            }
-        }
+        wakeupForFullScreenIntent()
 
         val binding : ActivityMainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
@@ -125,39 +113,67 @@ class MainActivity : AppCompatActivity() {
         timer_gui.timerWidgets[TimerGui.POMODORO].timePickerTextView = pomodoro_time
         timer_gui.timerWidgets[TimerGui.REST].timePickerTextView = rest_time
 
-        playToPauseDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.play_to_pause_avd)!!
-        pauseToPlayDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.pause_to_play_avd)!!
-        pencilToStopDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.pencil_to_stop_avd)!!
-        stopToPencilDrawable = AnimatedVectorDrawableCompat.create(this, R.drawable.stop_to_pencil_avd)!!
-
         remindersViewModel.repository.reminders.observe(this, Observer {  }) // for now just have an active observer to trigger list population
 
         // admob
         admobLoader.initialize()
+
+    }
+
+    private fun wakeupForFullScreenIntent() {
+        intent?.let {
+            PreferenceManager.getDefaultSharedPreferences(this).also { sharedPrefs ->
+                if (sharedPrefs.getBoolean(getString(R.string.notifications_wake_up_pref_key), true)
+                    && it.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
+
+                    Log.d(LOG_TAG, "onCreate: notification from lock screen, turn on and set to show")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                        setShowWhenLocked(true)
+                        setTurnScreenOn(true)
+                        // fairly sure this is going to work inconsistently across devices
+                        (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).requestDismissKeyguard(this, null)
+                    }
+                    else {
+                        @Suppress("DEPRECATION")
+                        // experimentation suggests this does work as hoped, the activity shows in front of the lock screen and after
+                        // dismissing it, it goes back to locked, dismiss keyguard might not add anything, but leave it in
+                        // in case of differences in devices
+                        this.window.addFlags(
+                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {
-//        if (acceptInput) {
-//            work_emoji.visibility = View.INVISIBLE
-//            rest_emoji.visibility = View.INVISIBLE
-//        }
-//        else {
-//            work_emoji.visibility = View.VISIBLE
-//            rest_emoji.visibility = View.VISIBLE
-//
-//        }
 
         Log.d(LOG_TAG, "callbackChangeToTimer: call update tracking isTracking=${activeTimer.isTrackingTiming()}")
         // change of state, ticking the timers turns on or off
         updateTrackingOnTimedViews(activeTimer.isTrackingTiming())
 
-        // when first start up the animated vector buttons have no drawable assigned
-        if (play_button.drawable == null) {
-//todo bug, not sure why stop to pencil is sometimes wrong image            val stopBitmap = BitmapDrawable(resources, stopToPencilDrawable.toBitmap())
-// todo seems pause sometimes too, when already on pause, turn device and it's showing pause again
-            play_button.setImageDrawable(if (activeTimer.isPlaying()) pauseToPlayDrawable else playToPauseDrawable)
-            edit_button.setImageDrawable(if (activeTimer.isStopped()) pencilToStopDrawable else stopToPencilDrawable)
+        // leave the animated buttons to their own devices if transitions are happening already
+        // otherwise set them
+        if (transitioningToTimerState == null) {
+            play_button.setImageDrawable(if (activeTimer.isPlaying()) pauseDrawable else playDrawable)
+            edit_button.setImageDrawable(if (activeTimer.isStopped()) pencilDrawable else stopDrawable)
         }
+        else {
+            transitioningToTimerState = null
+        }
+    }
+
+    /**
+     * AutoStartStopHelper needs to tell activity when the timer is stopped automatically
+     * it could just react to the observer, but that doesn't indicate that it was
+     * part of the auto stop process
+     */
+    override fun onPause() {
+        super.onPause()
+        current = null
     }
 
     /**
@@ -166,6 +182,7 @@ class MainActivity : AppCompatActivity() {
      */
     override fun onResume() {
         super.onResume()
+        current = this
 
         if (isTrackingTiming) {
             updateTrackingOnTimedViews(true)
@@ -182,7 +199,7 @@ class MainActivity : AppCompatActivity() {
         val ret = super.dispatchTouchEvent(event)
         if (event?.action == MotionEvent.ACTION_DOWN && intent?.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
             Log.d(LOG_TAG, "dispatchTouchEvent: action down, cancel background alarm and notification")
-            alarms.cancelBackgroundAlarm()
+            alarms.cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
             Notifications(this).cancelNotifications()
         }
         return ret
@@ -195,7 +212,7 @@ class MainActivity : AppCompatActivity() {
         intent?.let {
                 if (it.getIntExtra(Alarms.REQ_CODE, -1) != Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
                     Log.d(LOG_TAG, "onStart: not started from lock screen, cancel background alarm and notification")
-                    alarms.cancelBackgroundAlarm()
+                    alarms.cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
                     Notifications(this).cancelNotifications()
                 }
             }
@@ -209,7 +226,7 @@ class MainActivity : AppCompatActivity() {
 
         timerViewModel.getActiveTimer()?.run {
             if (isPlaying()) {
-                alarms.setBackgroundAlarm(this)
+                alarms.setRegularBackgroundAlarm(this)
                 setKeepScreenOnWhileRunning(false)
             }
         }
@@ -230,23 +247,30 @@ class MainActivity : AppCompatActivity() {
 
         isTrackingTiming = onOrOff
 
-        if (isTrackingTiming && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+        if (isTrackingTiming) {
 
-            timer_gui.doTick().also { (timerType, restElapsed) ->
-                if (timerType != TimerType.NONE) {
-                    Log.d(LOG_TAG, "updateTrackingOnTimedViews: timer expired this go round")
-                    timerExpiredWhileTicking(timerType)
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                timer_gui.doTick().also { (timerType, restElapsed) ->
+                    if (timerType != TimerType.NONE) {
+                        Log.d(LOG_TAG, "updateTrackingOnTimedViews: timer expired this go round")
+                        timerExpiredWhileTicking(timerType)
+                    }
+
+                    if (restElapsed != 0L) {
+                        animateReminderText(restElapsed)
+                    }
                 }
 
-                if (restElapsed != 0L) {
-                    animateReminderText(restElapsed)
+                if (!isTimerTrackingRunnablePosted) {
+                    isTimerTrackingRunnablePosted = true
+                    timer_gui.postDelayed(timerTrackingRunnable, TIMER_DELAY)
                 }
             }
-
-            if (!isTimerTrackingRunnablePosted) {
-                isTimerTrackingRunnablePosted = true
-                timer_gui.postDelayed(timerTrackingRunnable, TIMER_DELAY)
-            }
+        }
+        else {
+            // if the timer is stopped automatically or by the notification
+            // make sure the reminder text is not showing
+            rest_reminder.visibility = View.GONE
         }
     }
 
@@ -336,7 +360,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Toggles between playing a paused
+     * Toggles between playing a paused, this is where ads consent is triggered too after playing a couple of times
+     * the user will have to consent to ads (EU only) before playing again
      */
     fun playPausePressed(@Suppress("UNUSED_PARAMETER") view: View) {
 
@@ -357,11 +382,11 @@ class MainActivity : AppCompatActivity() {
                     edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
                 }
 
-                timerViewModel.toggleStartPause().also { isStarted ->
-                    play_button.setImageDrawable((if (isStarted) playToPauseDrawable else pauseToPlayDrawable).also {
+                transitioningToTimerState = timerViewModel.toggleStartPauseToState()
+                play_button.setImageDrawable((if (transitioningToTimerState == TimerState.PLAYING) playToPauseDrawable else pauseToPlayDrawable)
+                    .also {
                         it.start()
                     })
-                }
             }
         }
     }
@@ -375,9 +400,11 @@ class MainActivity : AppCompatActivity() {
         if (timerViewModel.getActiveTimer()!!.isStopped()) {
             timer_gui.editTimers()             // start transition
             edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
+            transitioningToTimerState = TimerState.EDITED
             timerViewModel.edit()
         }
         else { // choice is to stop whatever is happening
+            transitioningToTimerState = TimerState.STOPPED
             timer_gui.transitionOutOfEditing()   // does nothing if not editing
             edit_button.setImageDrawable(stopToPencilDrawable.also { it.start() })
 
@@ -405,6 +432,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
+    }
+
+    /**
+     * Called by AutoStartStopHelper when triggered from an alarm
+     * simulate pressed and put up a snack
+     */
+    fun onAutoStop() {
+
+        editStopPressed(play_button)
+
+        // show snack bar for undo
+        Snackbar.make(play_button, R.string.snack_and_notification_auto_stopped, Snackbar.LENGTH_INDEFINITE)
+            .apply {
+                setAction(R.string.snack_dismiss) { dismiss() }
+            }
+            .show()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
