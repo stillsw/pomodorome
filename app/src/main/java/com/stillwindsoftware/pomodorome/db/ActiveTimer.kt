@@ -1,8 +1,10 @@
 package com.stillwindsoftware.pomodorome.db
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.room.*
+import com.stillwindsoftware.pomodorome.events.AutoStartStopHelper
 
 /**
  * All things database to do with ActiveTimer table/dao
@@ -19,12 +21,14 @@ data class ActiveTimer(
     @ColumnInfo(name = "timer_state") var timerState: TimerState
 ) {
 
-    fun pause() {
+    fun pause(context: Context) {
         pauseAtTime = System.currentTimeMillis()
         timerState = TimerState.PAUSED
+
+        AutoStartStopHelper(context).onPlayingPausedOrStopped()
     }
 
-    fun start() {
+    fun start(context: Context) {
         val now = System.currentTimeMillis()
         if (isPaused()) {
             previousPausesAccumulated += now - pauseAtTime
@@ -35,13 +39,17 @@ data class ActiveTimer(
         }
 
         timerState = TimerState.PLAYING
+
+        AutoStartStopHelper(context).onPlayingStarted()
     }
 
-    fun stop() {
+    fun stop(context: Context) {
         startTime = 0L
         pauseAtTime = 0L
         previousPausesAccumulated = 0L
         timerState = TimerState.STOPPED
+
+        AutoStartStopHelper(context).onPlayingPausedOrStopped()
     }
 
     fun edit() {

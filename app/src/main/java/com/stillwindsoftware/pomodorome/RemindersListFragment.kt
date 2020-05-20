@@ -294,10 +294,7 @@ class SwipeToRevealCallback(val context: Context, private val fragment: Reminder
             Snackbar.make(fragment.requireView().findViewById<ConstraintLayout>(R.id.layout),
                 R.string.delete_reminder, 5000) // show it for a longer fixed time than LENGTH_LONG
                 .apply {
-                    setAction(R.string.undo_delete_reminder) {
-                        fragment.viewModel.addReminder(this@with.text)
-                    }
-                .show()
+                    setAction(R.string.undo_delete_reminder) { fragment.viewModel.addReminder(this@with.text) }.show()
                 }
         }
     }

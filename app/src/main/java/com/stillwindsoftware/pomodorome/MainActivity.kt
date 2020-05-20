@@ -1,7 +1,6 @@
 package com.stillwindsoftware.pomodorome
 
 import android.app.KeyguardManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -9,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.*
-import android.widget.FrameLayout
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
@@ -17,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.gms.ads.AdView
+import com.google.android.material.snackbar.Snackbar
 import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
 import com.stillwindsoftware.pomodorome.db.ActiveTimer
@@ -41,6 +40,8 @@ import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 class MainActivity : AppCompatActivity() {
 
     companion object {
+        var current: MainActivity? = null // singleton instance so AutoStartStopHelper can trigger
+
         @Suppress("unused")
         private const val LOG_TAG = "MainActivity"
         private const val PLAY_CLICKS_BEFORE_ADS_CONSENT = 2
@@ -134,6 +135,20 @@ class MainActivity : AppCompatActivity() {
 
         // admob
         admobLoader.initialize()
+
+//        AutoStartStopHelper(this).getNextSelectedTimeInMillis(true)
+//        for (j in 1 .. 7) {
+//            for (i in GregorianCalendar().get(Calendar.HOUR_OF_DAY) - 1 .. GregorianCalendar().get(Calendar.HOUR_OF_DAY) + 1) {
+//                AutoStartStopHelper(this)
+//                    .getNextSelectedTimeInMillis(true, j,
+//                        GregorianCalendar(TimeZone.getTimeZone("GMT"))
+//                            .apply {
+//                                clear()
+//                                set(Calendar.HOUR_OF_DAY, i)
+//                                set(Calendar.DAY_OF_WEEK, j)
+//                            }.timeInMillis)
+//            }
+//        }
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {
@@ -161,11 +176,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * AutoStartStopHelper needs to tell activity when the timer is stopped automatically
+     * it could just react to the observer, but that doesn't indicate that it was
+     * part of the auto stop process
+     */
+    override fun onPause() {
+        super.onPause()
+        current = null
+    }
+
+    /**
      * Timing will track automatically after the activity is created, but if it's
      * restarted have to test for getting it going again
      */
     override fun onResume() {
         super.onResume()
+        current = this
 
         if (isTrackingTiming) {
             updateTrackingOnTimedViews(true)
@@ -182,7 +208,7 @@ class MainActivity : AppCompatActivity() {
         val ret = super.dispatchTouchEvent(event)
         if (event?.action == MotionEvent.ACTION_DOWN && intent?.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
             Log.d(LOG_TAG, "dispatchTouchEvent: action down, cancel background alarm and notification")
-            alarms.cancelBackgroundAlarm()
+            alarms.cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
             Notifications(this).cancelNotifications()
         }
         return ret
@@ -195,7 +221,7 @@ class MainActivity : AppCompatActivity() {
         intent?.let {
                 if (it.getIntExtra(Alarms.REQ_CODE, -1) != Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
                     Log.d(LOG_TAG, "onStart: not started from lock screen, cancel background alarm and notification")
-                    alarms.cancelBackgroundAlarm()
+                    alarms.cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
                     Notifications(this).cancelNotifications()
                 }
             }
@@ -209,7 +235,7 @@ class MainActivity : AppCompatActivity() {
 
         timerViewModel.getActiveTimer()?.run {
             if (isPlaying()) {
-                alarms.setBackgroundAlarm(this)
+                alarms.setRegularBackgroundAlarm(this)
                 setKeepScreenOnWhileRunning(false)
             }
         }
@@ -405,6 +431,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
+    }
+
+    /**
+     * Called by AutoStartStopHelper when triggered from an alarm
+     * simulate pressed and put up a snack
+     */
+    fun onAutoStop() {
+
+        editStopPressed(play_button)
+
+        // show snack bar for undo
+        Snackbar.make(play_button, R.string.snack_and_notification_auto_stopped, Snackbar.LENGTH_INDEFINITE)
+            .apply {
+                setAction(R.string.snack_dismiss) { dismiss() }
+            }
+            .show()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

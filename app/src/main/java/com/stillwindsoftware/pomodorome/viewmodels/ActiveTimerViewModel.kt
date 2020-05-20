@@ -45,11 +45,11 @@ class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(appli
 
         repository.timer.value!!.also {
             if (it.isPlaying()) {
-                it.pause()
+                it.pause(getApplication())
                 isStart = false
             }
             else {
-                it.start()
+                it.start(getApplication())
             }
             update(it)
 
@@ -61,7 +61,7 @@ class ActiveTimerViewModel(application: Application) : PomodoromeViewModel(appli
     fun stop() {
         repository.timer.value!!.also {
             if (!it.isStopped()) {
-                it.stop()
+                it.stop(getApplication())
                 update(it)
             }
         }
