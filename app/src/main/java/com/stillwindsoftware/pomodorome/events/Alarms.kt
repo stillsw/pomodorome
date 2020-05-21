@@ -262,7 +262,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 // (only if the preference allows notifications though)
                 PreferenceManager.getDefaultSharedPreferences(context).also { sharedPrefs ->
                     if (sharedPrefs.getBoolean(context.getString(R.string.notifications_on_pref_key), true)) {
-                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
+                        Notifications(context).sendNotification(timerType!!, triggerAtMillis, TimerState.PLAYING)
                     }
                 }
             }
@@ -305,6 +305,16 @@ class AlarmReceiver : BroadcastReceiver() {
                 Log.d(LOG_TAG, "onReceive: from sendNotification: answer yes to auto start")
                 restartTiming(context)
                 gotoActivity(context)
+            }
+            Alarms.REQ_CODE_AUTO_STOP -> {
+                Log.d(LOG_TAG, "onReceive: from sendNotification: process auto stop")
+                AutoStartStopHelper(context).onAutoStopAlarm()
+                doAlarm(context, TimerType.REST, repeating = false)
+            }
+            Alarms.REQ_CODE_AUTO_START -> {
+                Log.d(LOG_TAG, "onReceive: from sendNotification: process auto start")
+                AutoStartStopHelper(context).onAutoStartAlarm()
+                doAlarm(context, TimerType.POMODORO, repeating = false)
             }
             Alarms.REQ_CODE_AUTO_STOP -> {
                 Log.d(LOG_TAG, "onReceive: from sendNotification: process auto stop")
