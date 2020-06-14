@@ -14,6 +14,9 @@ import java.util.*
  * There's quite a few use cases, each has its own method so it's easier to follow.
  * As it's a helper class it interacts with the Alarms (including AlarmReceiver) and Notifications
  * and also with MainActivity when that's in the foreground and also with the db
+ *
+ * Use runTestsOnGetNextTime() to run a series of a week's worth of test times to make sure it
+ * getMillisTillNextTime() works properly
  */
 class AutoStartStopHelper(private val context: Context) {
 
@@ -60,7 +63,8 @@ class AutoStartStopHelper(private val context: Context) {
     }
 
     /**
-     * Start alarm fires, send a notification to notify the user
+     * Start alarm fires, send a notification to notify the user unless the
+     * activity is in the foreground, if so, then put up a snack bar message
      * Called by the alarm receiver
      */
     fun onAutoStartAlarm() {
@@ -70,17 +74,22 @@ class AutoStartStopHelper(private val context: Context) {
             Log.w(LOG_TAG, "onAutoStartAlarm: auto start is not enabled, should not call this method")
         }
 
-        Log.d(LOG_TAG, "onAutoStartAlarm: ")
+        if (MainActivity.current != null) {
+            Log.d(LOG_TAG, "onAutoStartAlarm: calling activity onAutoStart")
+            MainActivity.current!!.apply { onAutoStart() }
+        }
+        else {
+            Log.d(LOG_TAG, "onAutoStartAlarm: send notification")
 
-        // check timer is not already running, otherwise it shouldn't have fired
-        MainScope().launch {
-            withTimerIOThread(context) {
-                if (it.isTrackingTiming()) {
-                    Log.d(LOG_TAG, "onAutoStartAlarm: timer is already running, nothing to do")
-                }
-                else {
-                    // send a notification to notify the user, question: Start Pomodoro Me?
-                    Notifications(context).sendNotification(isStart = true)
+            // check timer is not already running, otherwise it shouldn't have fired
+            MainScope().launch {
+                withTimerIOThread(context) {
+                    if (it.isTrackingTiming()) {
+                        Log.d(LOG_TAG, "onAutoStartAlarm: timer is already running, nothing to do")
+                    } else {
+                        // send a notification to notify the user, question: Start Pomodoro Me?
+                        Notifications(context).sendNotification(isStart = true)
+                    }
                 }
             }
         }
@@ -142,7 +151,8 @@ class AutoStartStopHelper(private val context: Context) {
         Log.d(LOG_TAG, "isAutoStopBeforeTime: ")
 
         // calculate the next auto stop time (there should be alarm set for it, so perhaps better way to check that)
-        return (getMillisTillNextTime(isStart = false) <= timerExpiresInMillis)
+        val nextAutoStop = getMillisTillNextAuto(R.string.auto_stop_time_pref_key)
+        return (nextAutoStop != 1L && nextAutoStop <= timerExpiresInMillis)
             .also { if (it) Log.d(LOG_TAG, "isAutoStopBeforeTime: returning true, (auto stop is due before timer expiry)") }
     }
 
@@ -233,7 +243,7 @@ class AutoStartStopHelper(private val context: Context) {
     private fun scheduleAutoAlarm(isStart: Boolean) {
 
         // schedule a start might return -1 if there are no days, so do nothing in that case
-        getMillisTillNextTime(isStart).also {
+        getMillisTillNextAuto(if (isStart) R.string.auto_start_time_pref_key else R.string.auto_stop_time_pref_key).also {
             if (it != -1L) {
                 Alarms(context).setAutoStartStopAlarm(if (isStart) Alarms.REQ_CODE_AUTO_START else Alarms.REQ_CODE_AUTO_STOP,
                     System.currentTimeMillis() + it)
@@ -245,73 +255,113 @@ class AutoStartStopHelper(private val context: Context) {
     }
 
     /**
-     * Bit complicated, if today is selected check time, it might be past already
-     * if no further days this week, then choose the first day next week
-     * fromTime is really just for testing, w/o it the boolean param dictates
-     * dayOfWeek is also for testing
-     * note: the time from the preference or param is reduced to hours and minutes
-     * passed today
+     * Gets the millis till the next occurrence of auto start or stop
+     * The param determines which
+     * Note: this method is only called when auto start has been set up, so there should
+     * always be a set of days in the prefs too (although it could be empty if no days are selected)
      */
-    private fun getMillisTillNextTime(isStart: Boolean, /* remaining params for testing only*/ dayOfWeek: Int = GregorianCalendar().get(Calendar.DAY_OF_WEEK), fromTime: Long? = null): Long {
-
+    private fun getMillisTillNextAuto(autoPrefKey: Int): Long {
         PreferenceManager.getDefaultSharedPreferences(context)
             .also { prefs ->
 
-                // test for the time before or after now today
-                // chop out the preference full days to get just hours/minutes and compare that
-                // to the local time hours/minutes passed today
+                val tillTimeMillis = prefs.getLong(context.getString(autoPrefKey), -1L)
 
-                val prefTimeMillis= (fromTime ?: prefs.getLong(context.getString(if (isStart) R.string.auto_start_time_pref_key else R.string.auto_stop_time_pref_key), -1L))
-                    .elapsedMillisModulusDay()
-
-                // difference now(local) to start of day (local)
-                val elapsedMillisToday = System.currentTimeMillis() - GregorianCalendar().millisAtStartOfDay()
-
-                // provided there is at least one day selected
-
-                if (prefTimeMillis > -1L && prefs.contains(context.getString(R.string.auto_days_pref_key))) {
+                if (prefs.contains(context.getString(R.string.auto_days_pref_key))) {
 
                     prefs.getStringSet(context.getString(R.string.auto_days_pref_key), null)?.run {
 
-                        if (isEmpty() || prefTimeMillis == -1L) {
-                            Log.d(LOG_TAG, "getMillisTillNextTime: no selected days in preference, nothing to do")
-                            return -1L
+                        if (isEmpty() || tillTimeMillis == -1L) {
+                            Log.d(LOG_TAG, "getMillisTillNextAuto: no selected days in preference, nothing to do")
                         }
+                        else {
+                            // chop out the preference full days to get just hours/minutes
+                            // that will be compared to the local time hours/minutes passed today
 
-                        var firstDay: Int // will need the first day if there are none remaining in the current week
-                        map { dayNum -> dayNum.toInt() }
-                            .toSortedSet()
-                            .also {  firstDay = first().toInt() }
-                            .filter { it > dayOfWeek || (it == dayOfWeek && elapsedMillisToday < prefTimeMillis) }
-                            .min()
-                            .also {
-                                val useDay = it ?: firstDay + 7 // null returned means none returned in this week, so take the first day from next week
-                                val daysFromToday = useDay - GregorianCalendar().get(Calendar.DAY_OF_WEEK)
-                                val millisToGo = prefTimeMillis - elapsedMillisToday + daysFromToday * MILLIS_PER_DAY
-
-                                // lots of debug info, but don't do any of it for production build
-                                if (BuildConfig.DEBUG) {
-                                    val prefHours = prefTimeMillis / 1000L / 60L / 60L
-                                    val prefMinutes = (prefTimeMillis / 1000L / 60L) - (prefHours * 60L)
-                                    val localHoursToDay = elapsedMillisToday / 1000L / 60L / 60L
-                                    val localMinutes = (elapsedMillisToday / 1000L / 60L) - (localHoursToDay * 60L)
-                                    val diffDays = millisToGo / MILLIS_PER_DAY
-                                    val diffHours = millisToGo / 1000L / 60L / 60L - (diffDays * 24L)
-                                    val diffMinutes = (millisToGo / 1000L / 60L) - ((diffDays * 24L + diffHours) * 60L)
-                                    Log.d(LOG_TAG, "getMillisTillNextTime: day=$useDay (${daysFromToday} from today) now=$localHoursToDay:$localMinutes pref=$prefHours:$prefMinutes alarm in $diffDays days, $diffHours hours, $diffMinutes minutes (${DateFormat.getTimeFormat(context).format(Date().apply {time = (System.currentTimeMillis() + millisToGo)})})")
-                                }
-
-                                return millisToGo
-                            }
+                            return getMillisTillNextTime(tillTimeMillis.elapsedMillisModulusDay(isLocalTime = false),
+                                GregorianCalendar().get(Calendar.DAY_OF_WEEK), this)
+                        }
                     }
                 }
                 else {
                     // would be an error here as this method should only be called because a preference has been set
-                    Log.w(LOG_TAG, "getMillisTillNextTime: no days prefs set up, this can only happen if user hasn't visited prefs")
+                    Log.w(LOG_TAG, "getMillisTillNextAuto: no days prefs set up, this can only happen if user hasn't visited prefs")
                 }
             }
 
         return -1L
+    }
+
+    /**
+     * If dayOfWeek is today check time as it might be past already
+     * if no further days this week, then choose the first day next week
+     * daysSet is normally read from preferences, but it can be a set passed for testing (see next method)
+     * nowTime substitutes current system time and is only for keeping tests consistent
+     */
+    private fun getMillisTillNextTime(tillTimeMillis: Long, dayOfWeek: Int, daysSet: MutableSet<String>,
+        /* for testing only*/ nowTime: Long? = null): Long {
+
+        // difference now(local) to start of day (local)
+        val elapsedMillisToday = (nowTime ?: System.currentTimeMillis()) - GregorianCalendar().millisAtStartOfDay()
+
+        Log.d(LOG_TAG, "getMillisTillNextTime: now time of day is before tillTime=${elapsedMillisToday < tillTimeMillis} tillTime=${tillTimeMillis.daysHoursMinsToString()} elapsedToday=${elapsedMillisToday.daysHoursMinsToString()}")
+
+        if (daysSet.isEmpty() || tillTimeMillis == -1L) {
+            Log.d(LOG_TAG, "getMillisTillNextTime: no selected days, nothing to do")
+            return -1L
+        }
+
+        var firstDay: Int // will need the first day if there are none remaining in the current week
+        daysSet.map { dayNum -> dayNum.toInt() }
+            .toSortedSet()
+            .also {  firstDay = it.first().toInt() }
+            .filter { it > dayOfWeek || (it == dayOfWeek && elapsedMillisToday < tillTimeMillis) }
+            .min()
+            .also {
+                val useDay = it ?: firstDay + 7 // null returned means none returned in this week, so take the first day from next week
+                val daysFromToday = useDay - dayOfWeek
+                val millisToGo = tillTimeMillis - elapsedMillisToday + daysFromToday * MILLIS_PER_DAY
+
+                // lots of debug info, but don't do any of it for production build
+                if (BuildConfig.DEBUG) {
+                    val prefHours = tillTimeMillis / 1000L / 60L / 60L
+                    val prefMinutes = (tillTimeMillis / 1000L / 60L) - (prefHours * 60L)
+                    val localHoursToDay = elapsedMillisToday / 1000L / 60L / 60L
+                    val localMinutes = (elapsedMillisToday / 1000L / 60L) - (localHoursToDay * 60L)
+                    val diffDays = millisToGo / MILLIS_PER_DAY
+                    val diffHours = millisToGo / 1000L / 60L / 60L - (diffDays * 24L)
+                    val diffMinutes = (millisToGo / 1000L / 60L) - ((diffDays * 24L + diffHours) * 60L)
+                    Log.d(LOG_TAG, "getMillisTillNextTime: day=$useDay (${daysFromToday} from today) now=$localHoursToDay:$localMinutes pref=$prefHours:$prefMinutes alarm in $diffDays days, $diffHours hours, $diffMinutes minutes (${DateFormat.getTimeFormat(context).format(Date().apply {time = ((nowTime ?: System.currentTimeMillis()) + millisToGo)})})")
+                }
+
+                return millisToGo
+            }
+    }
+
+    /**
+     * Runs fixed tests to ensure next auto start/stop time calculations are correct taking into account local times
+     */
+    @Suppress("unused")
+    internal fun runTestsOnGetNextTime() {
+        // set up various tests to check get millis works, and outputs date/times in format that makes sense
+        val oneMin = 1000L * 60
+        val oneHour = oneMin * 60
+        val nowTime = GregorianCalendar().millisAtStartOfDay() + (oneHour * 12)
+        val nine15Am = GregorianCalendar().millisAtStartOfDay() + (oneHour * 9) + (oneMin * 15)
+        val four30Pm = GregorianCalendar().millisAtStartOfDay() + (oneHour * 16) + (oneMin * 30)
+        val timeFormat = DateFormat.getTimeFormat(context)
+
+        Log.d(LOG_TAG, "runTestsOnGetNextTime: BEGIN TESTS: first time is ${timeFormat.format(Date().apply { time = nine15Am })} second time is ${timeFormat.format(Date().apply { time = four30Pm })} now time is ${timeFormat.format(Date().apply { time = nowTime })}\n\n")
+
+        val testDays = mutableSetOf(Calendar.SUNDAY.toString())
+
+        for (todayInWeek in Calendar.SUNDAY..Calendar.SATURDAY) {
+            // test 2 times for each day
+            for (forTime in listOf(nine15Am, four30Pm)) {
+                Log.d(LOG_TAG, "runTestsOnGetNextTime: RUNNING TEST: todayInWeek=$todayInWeek nowTime=${timeFormat.format(Date().apply { time = nowTime })} tillNextTime=${timeFormat.format(Date().apply { time = forTime })} testDays=$testDays")
+                val result = getMillisTillNextTime(forTime.elapsedMillisModulusDay(true), todayInWeek, testDays, nowTime)
+                Log.d(LOG_TAG, "runTestsOnGetNextTime: result to go: ${result.daysHoursMinsToString()}\n\n")
+            }
+        }
     }
 
     private fun isAutoStartEnabled() =

@@ -6,6 +6,9 @@
     <string name="notification_pomodoro">Remember to %1$s</string>
     <string name="notification_rest">Pomodoro time</string>
     <string name="notification_auto_start_prompt">Start Pomodoro timing?</string>
+    <string name="snack_auto_start">Start timing?</string>
+    <string name="snack_go">Go</string>
+    <string name="notification_auto_start_pressed">Timing started</string>
     <string name="snack_and_notification_auto_stopped">Reached end of timing for today</string>
     <string name="snack_dismiss">Dismiss</string>
     <string name="consent_form_show_error">Form failed, are you connected to the internet?</string>
@@ -29,7 +32,9 @@
     <string name="notifications_on_title">Send notifications</string>
     <string name="notifications_on_summary">When app is not visible</string>
     <string name="notifications_wake_up_title">Wake up from sleep</string>
-    <string name="notifications_wake_up_summary">Depends on device settings</string>
+    <string name="notifications_wake_up_summary">Only when charging (depends on device settings) EXPERIMENTAL</string>
+    <string name="notifications_wake_up_dismiss_key_guard_title">Show when locked</string>
+    <string name="notifications_wake_up_dismiss_key_guard_summary">Attempt to show over lock screen EXPERIMENTAL</string>
 
     <string name="reminders_title">Rest Time Reminders</string>
     <string name="show_reminders_title">Show in Rest time</string>
@@ -58,7 +63,6 @@
     <string name="consent_pref_summary_personalized">Allow personalized ads</string>
     <string name="consent_pref_summary_non_personalized">Do not personalize ads</string>
     <string name="settingsKeep_screen_awake_while_active_label">Keep screen on while timing</string>
-<!--    <string name="wait_for_consent_form">Loading Google consent, please wait...</string>-->
 
     <!-- Keys to Preferences -->
     <string name="keepScreenAwake_pref_key" translatable="false">com.stillwindsoftware.pomodorome.keep_awake</string>
@@ -74,6 +78,7 @@
     <string name="showReminders_list_pref_key" translatable="false">com.stillwindsoftware.pomodorome.list_reminders</string>
     <string name="notifications_on_pref_key" translatable="false">com.stillwindsoftware.pomodorome.alert_notify</string>
     <string name="notifications_wake_up_pref_key" translatable="false">com.stillwindsoftware.pomodorome.alert_wakeup</string>
+    <string name="notifications_wake_up_pref_dismiss_key" translatable="false">com.stillwindsoftware.pomodorome.alert_wakeup_dismiss</string>
 
     <string name="admob_app_id" translatable="false">ca-app-pub-1327712413378636~2290792975</string>
     <string name="admob_banner_id" translatable="false">ca-app-pub-1327712413378636/3692053297</string>

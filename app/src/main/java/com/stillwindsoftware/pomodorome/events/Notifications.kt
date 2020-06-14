@@ -4,6 +4,7 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -31,17 +32,25 @@ class Notifications(private val context: Context) {
         @Suppress("unused")
         private const val LOG_TAG = "Notifications"
         private const val NOTIFICATION_CHANNEL_ID = "Pomodoro Me"
-        private const val NOTIFICATION_ID = 2
+        const val REGULAR_ALARMS_NOTIFICATION_ID = 2
+        private const val OTHER_ALARMS_NOTIFICATION_ID = 3
     }
 
     /**
      * Called from AutoStartStopHelper when the event fires in the alarm receiver
      * Includes a title depending on which it is, plus an action only
      * for auto start when the user elects to start
+     * Also called from on response to the auto start notification pressed button
+     * if that's called, the text is updated and the button is removed
      */
-    fun sendNotification(isStart: Boolean) {
+    fun sendNotification(isStart: Boolean, isConfirmAutoStart: Boolean = false) {
 
-        cancelNotifications()
+        if (!isConfirmAutoStart) cancelNotifications()
+
+        if (MainActivity.current != null) {
+            Log.d(LOG_TAG, "sendNotification: auto start/stop, should not attempt to send notification when activity is in the foreground")
+            return
+        }
 
         NotificationCompat.Builder(context,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) NOTIFICATION_CHANNEL_ID else "")
@@ -61,13 +70,13 @@ class Notifications(private val context: Context) {
                         makePendingIntentForAlarmReceiver(REQ_CODE_AUTO_START_YES))
                 }
                 else {
-                    builder.setContentText(context.getString(R.string.snack_and_notification_auto_stopped))
+                    builder.setContentText(context.getString( if (isConfirmAutoStart) R.string.notification_auto_start_pressed else R.string.snack_and_notification_auto_stopped))
                 }
 
                 NotificationManagerCompat.from(context)
                     .apply {
                         builder.priority = NotificationManager.IMPORTANCE_HIGH
-                        notify(NOTIFICATION_ID, builder.build())
+                        notify(OTHER_ALARMS_NOTIFICATION_ID, builder.build())
                     }
             }
     }
@@ -76,7 +85,12 @@ class Notifications(private val context: Context) {
      * Called from AlarmReceiver when an alarm expires but the app is not in the foreground
      * (only possible when the timer is running)
      */
-    fun sendNotification(timerType: TimerType, triggerAtMillis: Long, currentState: TimerState) {
+    fun sendNotification(timerType: TimerType, triggerAtMillis: Long, currentState: TimerState, checkActivity: Boolean = true) {
+
+        if (checkActivity && MainActivity.current != null) {
+            Log.d(LOG_TAG, "sendNotification: $timerType, should not attempt to send notification when activity is in the foreground")
+            return
+        }
 
         NotificationCompat.Builder(context,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) NOTIFICATION_CHANNEL_ID else "")
@@ -119,7 +133,7 @@ class Notifications(private val context: Context) {
                 NotificationManagerCompat.from(context)
                     .apply {
                         builder.priority = NotificationManager.IMPORTANCE_HIGH
-                        notify(NOTIFICATION_ID, builder.build())
+                        notify(REGULAR_ALARMS_NOTIFICATION_ID, builder.build())
                     }
             }
     }
@@ -151,8 +165,9 @@ class Notifications(private val context: Context) {
      * Called from the Activity after restart when the user responds to an alarm by touching the screen
      * and also from AlarmsReceiver as a result of tapping Stop in the notification
      */
-    fun cancelNotifications() =
-        NotificationManagerCompat.from(context).apply { cancelAll() }
+    fun cancelNotifications(which: Int = -1) =
+        NotificationManagerCompat.from(context)
+            .apply { if (which == -1) cancelAll() else cancel(which) }
 
     /**
      * Called from MainActivity.onCreate() to ensure the notification channel is created

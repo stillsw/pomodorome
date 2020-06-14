@@ -30,6 +30,14 @@
             app:defaultValue="true"
             />
 
+        <SwitchPreferenceCompat
+            app:key="@string/notifications_wake_up_pref_dismiss_key"
+            app:title="@string/notifications_wake_up_dismiss_key_guard_title"
+            app:summary="@string/notifications_wake_up_dismiss_key_guard_summary"
+            app:defaultValue="true"
+            app:dependency="@string/notifications_wake_up_pref_key"
+            />
+
     </PreferenceCategory>
 
 

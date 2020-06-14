@@ -13,5 +13,6 @@
     <color name="timePickerDivisions">@color/timePickerBackground</color>
     <color name="restReminderBackground">@color/colorPrimary</color>
     <color name="consentFormFadeOut">#44000000</color>
+    <color name="ic_launcher_background">@android:color/white</color>
 
 </resources>

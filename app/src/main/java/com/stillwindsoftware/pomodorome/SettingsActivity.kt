@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.util.Log
@@ -424,6 +425,14 @@ class SettingsActivity : AppCompatActivity(),
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.reminders_preferences, rootKey)
+
+            // hide the preference to allow deprecated method prior to O
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+                findPreference<Preference>(getString(R.string.notifications_wake_up_pref_dismiss_key))?.let { pref ->
+                    pref.isVisible = false
+                }
+            }
+
         }
 
         override fun onPreferenceTreeClick(preference: Preference): Boolean {

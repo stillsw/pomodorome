@@ -33,6 +33,8 @@ import kotlin.math.min
 import kotlin.math.sin
 import com.stillwindsoftware.pomodorome.ads.AdmobLoader
 import com.stillwindsoftware.pomodorome.db.TimerState
+import com.stillwindsoftware.pomodorome.viewmodels.WakeupForReminders
+import java.lang.Exception
 
 /**
  * Thanks to Alex Lockwood for his excellent shape shifter path morphing tool which I used
@@ -83,6 +85,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // as soon as the user touches the screen can cancel any pending notifications
+    // have a flag so only do it once
+    private var awaitTouchToCancelAlarms = false
+
     private val timerViewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
     private val remindersViewModel by lazy { ViewModelProvider(this)[RemindersViewModel::class.java] }
 
@@ -94,14 +100,13 @@ class MainActivity : AppCompatActivity() {
             }, windowManager.defaultDisplay) }
 
     private val alarms = Alarms(this)
+    private val wakeupForReminders = WakeupForReminders(this)
+    private var buttonPressedAtMillis: Long = -1L // don't let alarm sound if within seconds of button press
+    private var snackBarItem: Snackbar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         EmojiHelper.initEmojis(applicationContext)
-
-        // provided the preference allows it, attempt to have the activity show in front of the lock screen,
-        // test the intent to see that's where it's come from
-        wakeupForFullScreenIntent()
 
         val binding : ActivityMainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
@@ -117,36 +122,6 @@ class MainActivity : AppCompatActivity() {
 
         // admob
         admobLoader.initialize()
-
-    }
-
-    private fun wakeupForFullScreenIntent() {
-        intent?.let {
-            PreferenceManager.getDefaultSharedPreferences(this).also { sharedPrefs ->
-                if (sharedPrefs.getBoolean(getString(R.string.notifications_wake_up_pref_key), true)
-                    && it.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
-
-                    Log.d(LOG_TAG, "onCreate: notification from lock screen, turn on and set to show")
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                        setShowWhenLocked(true)
-                        setTurnScreenOn(true)
-                        // fairly sure this is going to work inconsistently across devices
-                        (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).requestDismissKeyguard(this, null)
-                    }
-                    else {
-                        @Suppress("DEPRECATION")
-                        // experimentation suggests this does work as hoped, the activity shows in front of the lock screen and after
-                        // dismissing it, it goes back to locked, dismiss keyguard might not add anything, but leave it in
-                        // in case of differences in devices
-                        this.window.addFlags(
-                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                        )
-                    }
-                }
-            }
-        }
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {
@@ -184,11 +159,85 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         current = this
 
+        // could be that the alarm receiver has started the activity after acquiring wake locks, release them asap
+        wakeupToShowReminders()
+
         if (isTrackingTiming) {
             updateTrackingOnTimedViews(true)
         }
 
         admobLoader.onActivityResume()
+    }
+
+    private fun wakeupToShowReminders() {
+        if (!wakeupForReminders.checkForStayAwake(intent)) {
+            Log.d(LOG_TAG, "wakeupToShowReminders: not staying awake for reminders only")
+            return
+        }
+
+        @Suppress("DEPRECATION")
+        fun wakeupUsingDeprecatedMethod():Boolean {
+            return try {
+                window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+                true
+            } catch (e: Exception) {
+                Log.w(LOG_TAG, "wakeupToShowReminders:exception using deprecated method to disable keyguard", e)
+                false
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+
+            // fairly sure this is going to work inconsistently across devices
+            // since API 27 if the device is secured, the user will have to enter credentials
+            // (on emulator the activity is visible underneath)
+             PreferenceManager.getDefaultSharedPreferences(this)
+                .also { prefs ->
+
+                    // the keyguard service "appears" to only bring up the keyguard for the user
+                    // to enter the pin, so check the user preference to allow it to be
+                    // dismissed by the deprecated method
+
+                    if (prefs.getBoolean(getString(R.string.notifications_wake_up_pref_dismiss_key), true)
+                        && wakeupUsingDeprecatedMethod()) {
+                            Log.d(LOG_TAG, "wakeupToShowReminders: user allows using deprecated method to disable keyguard")
+                    }
+                    else {
+                        // user has chosen to do the default behaviour (show security to unlock it)
+                        Log.d(LOG_TAG, "wakeupToShowReminders: notification from lock screen, turn on and set to show (build o_mri)")
+                        setShowWhenLocked(true)
+                        setTurnScreenOn(true)
+
+                        (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager)
+                            .requestDismissKeyguard(
+                                this,
+                                object : KeyguardManager.KeyguardDismissCallback() {
+
+                                    override fun onDismissSucceeded() {
+                                        Log.d(LOG_TAG, "wakeupToShowReminders:onDismissSucceeded")
+                                    }
+
+                                    override fun onDismissCancelled() {
+                                        Log.d(LOG_TAG, "wakeupToShowReminders:onDismissCancelled")
+                                        setShowWhenLocked(false)
+                                        setTurnScreenOn(false)
+                                    }
+
+                                    override fun onDismissError() {
+                                        Log.d(LOG_TAG, "wakeupToShowReminders:onDismissError")
+                                        setShowWhenLocked(false)
+                                        setTurnScreenOn(false)
+                                    }
+                                })
+                    }
+                }
+        }
+        else {
+            Log.d(LOG_TAG, "wakeupToShowReminders: notification from lock screen, turn on and set to show (deprecated version)")
+            wakeupUsingDeprecatedMethod()
+        }
     }
 
     /**
@@ -197,8 +246,11 @@ class MainActivity : AppCompatActivity() {
      */
     override fun dispatchTouchEvent(event: MotionEvent?): Boolean {
         val ret = super.dispatchTouchEvent(event)
-        if (event?.action == MotionEvent.ACTION_DOWN && intent?.getIntExtra(Alarms.REQ_CODE, -1) == Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
-            Log.d(LOG_TAG, "dispatchTouchEvent: action down, cancel background alarm and notification")
+
+        if (awaitTouchToCancelAlarms) {
+            awaitTouchToCancelAlarms = false
+
+            Log.d(LOG_TAG, "dispatchTouchEvent: first touch, cancel background alarm and notification")
             alarms.cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
             Notifications(this).cancelNotifications()
         }
@@ -208,12 +260,17 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
 
+        awaitTouchToCancelAlarms = true
+
         // from the lock screen don't cancel alarm/notifications
         intent?.let {
                 if (it.getIntExtra(Alarms.REQ_CODE, -1) != Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) {
                     Log.d(LOG_TAG, "onStart: not started from lock screen, cancel background alarm and notification")
                     alarms.cancelBackgroundAlarm(Alarms.REQ_CODE_ALARM)
-                    Notifications(this).cancelNotifications()
+                    // only cancel regular alarm notifications, so the auto stop ones remain till
+                    // the user touches the screen (otherwise if the app was in the foreground and the screen turns on
+                    // the notification is dismissed w/o ever seeing it)
+                    Notifications(this).cancelNotifications(Notifications.REGULAR_ALARMS_NOTIFICATION_ID)
                 }
             }
     }
@@ -242,6 +299,7 @@ class MainActivity : AppCompatActivity() {
 
         // being turned on or off for the first time
         if (isTrackingTiming != onOrOff) {
+            Log.d(LOG_TAG, "updateTrackingOnTimedViews: change to value, call keep screen on with $onOrOff")
             setKeepScreenOnWhileRunning(onOrOff)
         }
 
@@ -250,7 +308,9 @@ class MainActivity : AppCompatActivity() {
         if (isTrackingTiming) {
 
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+
                 timer_gui.doTick().also { (timerType, restElapsed) ->
+
                     if (timerType != TimerType.NONE) {
                         Log.d(LOG_TAG, "updateTrackingOnTimedViews: timer expired this go round")
                         timerExpiredWhileTicking(timerType)
@@ -258,6 +318,11 @@ class MainActivity : AppCompatActivity() {
 
                     if (restElapsed != 0L) {
                         animateReminderText(restElapsed)
+                    }
+                    // safeguard when come back from notification
+                    else if (rest_reminder.visibility == View.VISIBLE) {
+                        Log.d(LOG_TAG, "updateTrackingOnTimedViews: timer is not in rest anymore, remove it")
+                        rest_reminder.visibility = View.GONE
                     }
                 }
 
@@ -274,11 +339,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Only turns screen on if the preference is set
+     * If wake locks are held there's no need either, they'll timeout at the right time
+     */
     private fun setKeepScreenOnWhileRunning(turnOn: Boolean) {
 
-        if (turnOn && PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.keepScreenAwake_pref_key), true)) {
-            Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: keeping screen on")
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (wakeupForReminders.hasWakeLocks()) {
+            Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: screen is kept on by wake locks")
+        }
+        else if (turnOn && PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.keepScreenAwake_pref_key), true)) {
+                Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: keeping screen on")
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
         else {
             Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: turned off keep screen on")
@@ -296,9 +368,33 @@ class MainActivity : AppCompatActivity() {
 
         startReminderText(timerType)
 
-        MainScope().launch {
-            alarms.playAlarm(timerType)
+        // in the case where a timer elapses immediately after pressing a button
+        // don't want the alarm to sound
+        if (System.currentTimeMillis() - buttonPressedAtMillis >= 10000L) { // 10 seconds
+            MainScope().launch {
+                alarms.playAlarm(timerType)
+            }
         }
+
+        // when finishing up showing rest reminders and nothing else has happened can turn
+        // the screen off again
+        if (wakeupForReminders.stayAwakeWhileRestReminders && timerType == TimerType.POMODORO) {
+            Log.d(LOG_TAG, "timerExpiredWhileTicking: rest reminders wake up finishing")
+
+            // let the screen go off
+            if (!wakeupForReminders.hasWakeLocks()) {
+                setKeepScreenOnWhileRunning(false)
+            }
+
+            // show the user a notification as the activity removed from the foreground
+            // (only if the preference allows notifications though)
+            PreferenceManager.getDefaultSharedPreferences(this).also { sharedPrefs ->
+                if (sharedPrefs.getBoolean(getString(R.string.notifications_on_pref_key), true)) {
+                    Notifications(this).sendNotification(timerType, 0L, TimerState.PLAYING, checkActivity = false)
+                }
+            }
+        }
+
     }
 
     /**
@@ -354,7 +450,6 @@ class MainActivity : AppCompatActivity() {
                     // scale up to full size quickly but not larger
                     rest_reminder.scaleY = min(10f * if (delta <= .5f) delta else 1.0f - delta, 1f)
                     rest_reminder.translationY = (sin(toRadians((360.0 * delta)-90)) * timer_gui.height / 4f).toFloat()
-//                    Log.d(LOG_TAG, "delta=$delta scale=${rest_reminder.scaleY} sin=$y")
                 }
             }
     }
@@ -364,6 +459,9 @@ class MainActivity : AppCompatActivity() {
      * the user will have to consent to ads (EU only) before playing again
      */
     fun playPausePressed(@Suppress("UNUSED_PARAMETER") view: View) {
+
+        // in case there's a message to do something waiting, once the user has interacted can remove it
+        anyButtonPressed()
 
         // currently in editing needs to transition out
         timer_gui.transitionOutOfEditing()
@@ -377,7 +475,8 @@ class MainActivity : AppCompatActivity() {
             }
             else {
 
-                // not the current state might mean the editStop button needs to change
+                // current state could be paused, when it's stopped the editStop button needs to change
+                // because play is beginning now
                 if (timer.isStopped()) {
                     edit_button.setImageDrawable(pencilToStopDrawable.also { it.start() })
                 }
@@ -395,6 +494,9 @@ class MainActivity : AppCompatActivity() {
      * Edit or stop depending on the current state, play/pause or edit
      */
     fun editStopPressed(@Suppress("UNUSED_PARAMETER") view: View) {
+
+        // in case there's a message to do something waiting, once the user has interacted can remove it
+        anyButtonPressed()
 
         // choose edit... only allowed to edit from stopped
         if (timerViewModel.getActiveTimer()!!.isStopped()) {
@@ -420,9 +522,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * So can distinguish between auto actions (such as auto start or stop, and turning over the cycle of timings)
+     * and when the user actually interacts
+     * Cancel the state where we determined the notification with full screen intent started the activity
+     */
+    private fun anyButtonPressed() {
+        buttonPressedAtMillis = System.currentTimeMillis()
+        removeSnack()
+        wakeupForReminders.stayAwakeWhileRestReminders = false
+        intent?.removeExtra(Alarms.REQ_CODE) // clear the extra that might be indicating only up for lock screen intent
+    }
+
+    /**
+     * Apart from when the user pressed a button (see prev method)
+     * also when auto start/stop and going to show a new snack, calls this to remove the previous one
+     */
+    private fun removeSnack() {
+        snackBarItem?.run { dismiss(); snackBarItem = null }
+    }
+
+    /**
      * Show the dialog for setting auto-start range
      */
     fun autoStartPressed(@Suppress("UNUSED_PARAMETER") view: View) {
+
+        removeSnack() // don't invode any button pressed for this one
+
         startActivity(Intent(this, SettingsActivity::class.java)
             .apply {
                 putExtra(SettingsActivity.INTENT_EXTRA_DIRECT_TO_ALARMS, 99)
@@ -438,22 +563,42 @@ class MainActivity : AppCompatActivity() {
      * Called by AutoStartStopHelper when triggered from an alarm
      * simulate pressed and put up a snack
      */
+    fun onAutoStart() {
+
+        // show snack bar for go, remove existing if there is one
+        removeSnack() // not an any button pressed one
+
+        snackBarItem = Snackbar.make(play_button, R.string.snack_auto_start, Snackbar.LENGTH_INDEFINITE)
+            .apply {
+                setAction(R.string.snack_go) {
+                    playPausePressed(play_button)
+                }
+            }
+            .also { it.show() }
+    }
+
+    /**
+     * Called by AutoStartStopHelper when triggered from an alarm
+     * simulate pressed and put up a snack
+     */
     fun onAutoStop() {
 
         editStopPressed(play_button)
 
-        // show snack bar for undo
-        Snackbar.make(play_button, R.string.snack_and_notification_auto_stopped, Snackbar.LENGTH_INDEFINITE)
+        snackBarItem = Snackbar.make(play_button, R.string.snack_and_notification_auto_stopped, Snackbar.LENGTH_INDEFINITE)
             .apply {
-                setAction(R.string.snack_dismiss) { dismiss() }
+                setAction(R.string.snack_dismiss) {
+                    removeSnack()
+                }
             }
-            .show()
+            .also { it.show() }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
 
         return when (item.itemId) {
             R.id.action_settings -> {
+                anyButtonPressed()
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }

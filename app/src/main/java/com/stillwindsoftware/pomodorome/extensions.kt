@@ -29,12 +29,23 @@ fun GregorianCalendar.millisAtStartOfDay(): Long {
 /**
  * Extension function gets the millis from start of a day chopping out
  * the rest of the date
+ * If it's a local time, the offset from gmt has to be added as well
  */
-fun Long.elapsedMillisModulusDay(): Long {
+fun Long.elapsedMillisModulusDay(isLocalTime: Boolean): Long {
 
-    val hours = this / 1000L / 60L / 60L
-    val minutes = (this / 1000L / 60L) - (hours * 60L)
+    val useTime = this + if (isLocalTime) TimeZone.getDefault().getOffset(this) else 0
+
+    val hours = useTime / 1000L / 60L / 60L
+    val minutes = (useTime / 1000L / 60L) - (hours * 60L)
     val dayHours = hours % 24
 
     return (dayHours * 60L + minutes) * 60L * 1000L
+}
+
+fun Long.daysHoursMinsToString(): String {
+    val oneMin = 1000L * 60
+    val oneHour = oneMin * 60
+    val days = this / (24 * oneHour)
+    val lastDay = this - (days * 24 * oneHour)
+    return "whole24Hours=$days hours=${lastDay / oneHour } mins=${(lastDay % oneHour) / oneMin}"
 }

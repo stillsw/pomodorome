@@ -20,10 +20,13 @@ import android.util.Log
 import com.stillwindsoftware.pomodorome.BuildConfig
 import com.stillwindsoftware.pomodorome.MainActivity
 import com.stillwindsoftware.pomodorome.R
+import com.stillwindsoftware.pomodorome.daysHoursMinsToString
 import com.stillwindsoftware.pomodorome.db.*
+import com.stillwindsoftware.pomodorome.viewmodels.WakeupForReminders
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 /**
  * Handles all alarms, setting and receiving
@@ -69,11 +72,7 @@ class Alarms(private val context: Context) {
                 }
                 else {
                     registerBackgroundAlarm(timerType, now + millisTillNext)
-
-                    // format just to log nicely, for efficiency only do it in debug
-                    if (BuildConfig.DEBUG) {
-                        Log.d(LOG_TAG, "setRegularBackgroundAlarm: register alarm for ${formatTimeForDebug(millisTillNext)} $timerType")
-                    }
+                    Log.d(LOG_TAG, "setRegularBackgroundAlarm: register alarm for ${millisTillNext.daysHoursMinsToString()} $timerType")
                 }
             }
         }
@@ -81,9 +80,6 @@ class Alarms(private val context: Context) {
             Log.w(LOG_TAG, "setAlarm: called in error, state is not playing (${activeTimer.timerState})")
         }
     }
-
-    private fun formatTimeForDebug(millis: Long) = SimpleDateFormat("HH:mm:ss", Locale.US)
-            .format(millis)
 
     /**
      * Called from AutoStartStopHelper.scheduleAutoAlarm()
@@ -104,7 +100,8 @@ class Alarms(private val context: Context) {
 
             // format just to log nicely, for efficiency only do it in debug
             if (BuildConfig.DEBUG) {
-                Log.d(LOG_TAG, "setAutoStartStopAlarm: registered alarm for auto alarm at ${formatTimeForDebug(triggerAtMillis)}")
+                Log.d(LOG_TAG, "setAutoStartStopAlarm: registered alarm for auto alarm at ${SimpleDateFormat.getDateTimeInstance(SimpleDateFormat.SHORT, SimpleDateFormat.SHORT).format(
+                    Date().apply { time = triggerAtMillis })}")
             }
         }
         catch (e: Exception) {
@@ -186,12 +183,40 @@ class Alarms(private val context: Context) {
 
                                     // play it as media, so user has better volume controls
                                     MediaPlayer.create(context, uri).apply {
+                                        // getting errors where doesn't play anymore after a while
+                                        // trying reset() at the end, but register a listener anyway
+
+                                        setOnErrorListener { mediaPlayer: MediaPlayer, what: Int, extra: Int ->
+
+                                            val whatStr = when (what) {
+                                                MediaPlayer.MEDIA_ERROR_UNKNOWN -> "MEDIA_ERROR_UNKNOWN"
+                                                MediaPlayer.MEDIA_ERROR_SERVER_DIED -> "MEDIA_ERROR_SERVER_DIED"
+                                                else -> "WHAT=$what"
+                                            }
+
+                                            when (extra) {
+                                                MediaPlayer.MEDIA_ERROR_IO -> Log.w(LOG_TAG, "playAlarmSound: onError: MEDIA_ERROR_IO for $whatStr")
+                                                MediaPlayer.MEDIA_ERROR_MALFORMED -> Log.w(LOG_TAG, "playAlarmSound: onError: MEDIA_ERROR_MALFORMED for $whatStr")
+                                                MediaPlayer.MEDIA_ERROR_UNSUPPORTED -> Log.w(LOG_TAG, "playAlarmSound: onError: MEDIA_ERROR_UNSUPPORTED for $whatStr")
+                                                MediaPlayer.MEDIA_ERROR_TIMED_OUT -> Log.w(LOG_TAG, "playAlarmSound: onError: MEDIA_ERROR_TIMED_OUT for $whatStr")
+                                                -2147483648 -> Log.w(LOG_TAG, "playAlarmSound: onError: MEDIA_ERROR_SYSTEM for $whatStr")
+                                                else -> Log.w(LOG_TAG, "playAlarmSound: onError: extra=$extra for $whatStr")
+                                            }
+
+                                            Log.w(LOG_TAG, "playAlarmSound: onError: calling reset on the ringtone player")
+                                            mediaPlayer.reset()
+
+                                            true
+                                        }
                                         start()
                                         val playLen = if (duration > 0) duration.toLong() else ALARM_SOUND_MILLIS
                                         // delay is called on the coroutine scope
                                         Log.d(LOG_TAG, "playAlarmSound: playing ringtone ${ringtone.getTitle(context)} for $timerType in coroutine stop after=$playLen")
+                                        val beginDelayMillis = System.currentTimeMillis()
                                         delay(playLen)
+                                        Log.d(LOG_TAG, "playAlarmSound: played for ${System.currentTimeMillis() - beginDelayMillis} millis before stopped")
                                         stop()
+                                        reset() // not sure if will help with the problem
                                     }
                                 }
 
@@ -261,8 +286,39 @@ class AlarmReceiver : BroadcastReceiver() {
                 // show the user a notification as the activity is not in foreground (or the broadcast would've been cancelled)
                 // (only if the preference allows notifications though)
                 PreferenceManager.getDefaultSharedPreferences(context).also { sharedPrefs ->
-                    if (sharedPrefs.getBoolean(context.getString(R.string.notifications_on_pref_key), true)) {
-                        Notifications(context).sendNotification(timerType!!, triggerAtMillis, TimerState.PLAYING)
+
+                    // first check when it's a rest time reminder, if the pref is set want the activity to start
+                    // but the screen may be off and cpu down, in that case it seems that (at least on nexus)
+                    // it doesn't wake up for the full screen intent, so acquire the wake locks
+                    // but only if the device is charging
+
+                    if (timerType == TimerType.REST
+                        && sharedPrefs.getBoolean(context.getString(R.string.notifications_wake_up_pref_key), true)) {
+
+                        MainScope().launch {
+                            withTimerIOThread(context) {
+
+                                it.getMillisTillNextEvent(System.currentTimeMillis())?.also { (_, millisTillNext) ->
+
+                                    if (WakeupForReminders.createWakeLocks(context, millisTillNext)) {
+
+                                        context.startActivity(Intent(context, MainActivity::class.java)
+                                            .apply {
+                                                putExtra(Alarms.REQ_CODE, Alarms.REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT)
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            })
+                                    }
+                                    else
+                                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING)
+                                }
+                            }
+                        }
+                    }
+                    else if (sharedPrefs.getBoolean(context.getString(R.string.notifications_on_pref_key), true)) {
+                        // 2 seconds either side of the wakelocks expiry is plenty of margin, allow notifications while rest reminders
+                        // were showing but are now closing out
+                        val checkActivity = abs(System.currentTimeMillis() - WakeupForReminders.wakeLocksExpireAtMillis) > 2000L
+                        Notifications(context).sendNotification(timerType, triggerAtMillis, TimerState.PLAYING, checkActivity)
                     }
                 }
             }
@@ -304,17 +360,7 @@ class AlarmReceiver : BroadcastReceiver() {
             Alarms.REQ_CODE_AUTO_START_YES -> {
                 Log.d(LOG_TAG, "onReceive: from sendNotification: answer yes to auto start")
                 restartTiming(context)
-                gotoActivity(context)
-            }
-            Alarms.REQ_CODE_AUTO_STOP -> {
-                Log.d(LOG_TAG, "onReceive: from sendNotification: process auto stop")
-                AutoStartStopHelper(context).onAutoStopAlarm()
-                doAlarm(context, TimerType.REST, repeating = false)
-            }
-            Alarms.REQ_CODE_AUTO_START -> {
-                Log.d(LOG_TAG, "onReceive: from sendNotification: process auto start")
-                AutoStartStopHelper(context).onAutoStartAlarm()
-                doAlarm(context, TimerType.POMODORO, repeating = false)
+                Notifications(context).sendNotification(false, isConfirmAutoStart = true)
             }
             Alarms.REQ_CODE_AUTO_STOP -> {
                 Log.d(LOG_TAG, "onReceive: from sendNotification: process auto stop")
