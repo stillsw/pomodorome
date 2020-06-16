@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keep,includedescriptorclasses class com.stillwindsoftware.pomodorome.SettingsActivity
+-keep,includedescriptorclasses class * extends androidx.preference.PreferenceFragmentCompat
