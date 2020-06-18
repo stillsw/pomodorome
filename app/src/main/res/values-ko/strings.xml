@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="consent_pref_summary_non_personalized">광고를 맞춤 설정하지 마십시오.</string>
+    <string name="consent_pref_summary_personalized">맞춤 광고 허용</string>
+    <string name="consent_pref_summary_not_required">해당 사항 없음</string>
+    <string name="consent_pref_summary_required">필수</string>
+    <string name="consent_pref_title">광고 동의 (EU 만 해당)</string>
+    <string name="title_activity_settings">조정</string>    
+
+    <string name="app_name">토마토 나</string>
+    <string name="notification_button_restart">타이밍 재개</string>
+    <string name="notification_button_pause">일시 중지 타이밍</string>
+    <string name="notification_paused">타이밍 일시 중지</string>
+    <string name="notification_pomodoro">%1$s 를 기억해야 합니다.</string>
+    <string name="notification_rest">토마토 시간</string>
+    <string name="notification_auto_start_prompt">포모도로 타이밍을 시작?</string>
+    <string name="snack_auto_start">타이밍을 시작?</string>
+    <string name="snack_go">이동</string>
+    <string name="notification_auto_start_pressed">타이밍 시작</string>
+    <string name="snack_and_notification_auto_stopped">오늘 타이밍의 끝에 도달</string>
+    <string name="snack_dismiss">해제</string>
+    <string name="consent_form_show_error">양식에 실패, 당신은 인터넷에 연결되어 있습니까?</string>
+
+    <!-- Preferences -->
+    <string name="timed_settings_header">타이밍</string>
+    <string name="auto_start_stop_title">자동 시작/중지</string>
+    <string name="auto_start_title">자동으로 시작</string>
+    <string name="auto_start_time_title">시작</string>
+    <string name="auto_stop_title">자동으로 중지</string>
+    <string name="auto_stop_time_title">중지</string>
+    <string name="auto_days_title">요일</string>
+
+    <string name="alerts_header">경고</string>
+    <string name="alerts_play_sounds">벨소리 재생</string>
+    <string name="alerts_vibrate">진동</string>
+    <string name="ringtone_pref_title_POMODORO">포모도로 시간</string>
+    <string name="ringtone_pref_title_REST">휴식 시간</string>
+    <string name="notifications_on_title">알림 보내기</string>
+    <string name="notifications_on_summary">앱이 표시되지 않는 경우</string>
+    <string name="notifications_wake_up_title">잠에서 깨어난다</string>
+    <string name="notifications_wake_up_summary">충전 시(장치 설정에 따라 다름) 실험</string>
+    <string name="notifications_wake_up_dismiss_key_guard_title">잠긴 때 표시</string>
+    <string name="notifications_wake_up_dismiss_key_guard_summary">잠금 화면 실험 위에 표시하려고 시도</string>
+
+    <string name="reminders_title">휴식 시간 미리 알림</string>
+    <string name="show_reminders_title">휴게시에 표시</string>
+    <string name="show_reminders_order_title">디스플레이 시퀀스</string>
+    <string name="show_reminders_cycle_title">순서대로</string>
+    <string name="show_reminders_random_title">임의의</string>
+    <string name="show_reminders_list_title">미리 알림 목록</string>
+    <string name="reminders_new_prompt">새 알림</string>
+    <string name="delete_reminder">미리 알림 삭제됨</string>
+    <string name="undo_delete_reminder">취소</string>
+    <string name="general_header">일반</string>
+    <string name="settingsKeep_screen_awake_while_active_label">타이밍 동안 화면 유지</string>
+    <string name="settingsKeep_screen_awake_while_active_summary">(충전시만)</string>
+
+    <string-array name="default_reminders">
+        <item name="item1">휴식을 취하십시오.</item>
+        <item name="item2">몸을 움직이세요</item>
+        <item name="item3">눈을 쉬십시오</item>
+        <item name="item4">운동을 하기</item>
+        <item name="item5">밖으로 나가기</item>
+        <item name="item6">염두에 두어야 합니다.</item>
+        <item name="item7">재미있는 일을</item>
+    </string-array>
+</resources>

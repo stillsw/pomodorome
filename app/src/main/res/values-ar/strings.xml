@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="consent_pref_summary_non_personalized">لا تخصيص الإعلانات</string>
+    <string name="consent_pref_summary_personalized">السماح للإعلانات المخصصة</string>
+    <string name="consent_pref_summary_not_required">لايمكن تطبيقه</string>
+    <string name="consent_pref_summary_required">طلب</string>
+    <string name="consent_pref_title">الموافقة على الإعلانات (الاتحاد الأوروبي فقط)</string>
+    <string name="title_activity_settings">الإعدادات</string>
+    <string name="app_name">الطماطم لي</string>
+    <string name="notification_button_restart">استئناف التوقيت</string>
+    <string name="notification_button_pause">إيقاف التوقيت مؤقتاً</string>
+    <string name="notification_paused">توقيت متوقف مؤقتاً</string>
+    <string name="notification_pomodoro">تذكر إلى %1$s</string>
+    <string name="notification_rest">الطماطم الوقت</string>
+    <string name="notification_auto_start_prompt">بدء توقيت بومودورو؟</string>
+    <string name="snack_auto_start">بدء التوقيت؟</string>
+    <string name="snack_go">الذهاب</string>
+    <string name="notification_auto_start_pressed">بدأ التوقيت</string>
+    <string name="snack_and_notification_auto_stopped">وصلت إلى نهاية التوقيت لهذا اليوم</string>
+    <string name="snack_dismiss">استبعاد</string>
+    <string name="consent_form_show_error">فشل النموذج، هل أنت متصل بالإنترنت؟</string>
+    <string name="timed_settings_header">توقيت</string>
+    <string name="auto_start_stop_title">التشغيل التلقائي/ الإيقاف</string>
+    <string name="auto_start_time_title">تبدأ من</string>
+    <string name="auto_start_title">ابدأ تلقائياً</string>
+    <string name="auto_stop_title">إيقاف تلقائي</string>
+    <string name="auto_stop_time_title">توقف عند</string>
+    <string name="auto_days_title">أيام الأسبوع</string>
+    <string name="alerts_header">تنبيهات</string>
+    <string name="alerts_play_sounds">تشغيل نغمات الرنين</string>
+    <string name="alerts_vibrate">يهتز</string>
+    <string name="ringtone_pref_title_POMODORO">بومودورو وقت</string>
+    <string name="ringtone_pref_title_REST">وقت الراحة</string>
+    <string name="notifications_on_title">إرسال إشعارات</string>
+    <string name="notifications_on_summary">عندما يكون التطبيق غير مرئي</string>
+    <string name="notifications_wake_up_title">استيقظ من النوم</string>
+    <string name="notifications_wake_up_summary">فقط عند الشحن (يعتمد على إعدادات الجهاز) التجريبية</string>
+    <string name="notifications_wake_up_dismiss_key_guard_title">إظهار عند تأمين</string>
+    <string name="notifications_wake_up_dismiss_key_guard_summary">محاولة إظهار أكثر من قفل شاشة تجريبية</string>
+    <string name="reminders_title">تذكيرات وقت الراحة</string>
+    <string name="show_reminders_title">إظهار في وقت الراحة</string>
+    <string name="show_reminders_order_title">عرض التسلسل</string>
+    <string name="show_reminders_cycle_title">في النظام</string>
+    <string name="show_reminders_random_title">عشوائيه</string>
+    <string name="show_reminders_list_title">قائمة التذكيرات</string>
+    <string name="reminders_new_prompt">تذكير جديد</string>
+    <string name="delete_reminder">تم حذف التذكير</string>
+    <string name="undo_delete_reminder">التراجع عن</string>
+    <string name="general_header">العامه</string>
+    <string name="settingsKeep_screen_awake_while_active_label">إبقاء الشاشة في حين التوقيت</string>
+    <string name="settingsKeep_screen_awake_while_active_summary">(فقط عند الشحن)</string>
+    <string-array name="default_reminders">
+        <item>خذ قسطاً من الراحة</item>
+        <item>تحريك جسمك</item>
+        <item>ارتاح عينيك</item>
+        <item>القيام ببعض التمارين</item>
+        <item>الذهاب إلى الخارج</item>
+        <item>تكون حاضرة</item>
+        <item>القيام بشيء ممتع</item>
+    </string-array>
+</resources>

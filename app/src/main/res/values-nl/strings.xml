@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="consent_pref_summary_non_personalized">Personaliseer geen advertenties</string>
+    <string name="consent_pref_summary_personalized">Sta gepersonaliseerde advertenties toe</string>
+    <string name="consent_pref_summary_not_required">Niet toepasbaar</string>
+    <string name="consent_pref_summary_required">gevraagd</string>
+    <string name="consent_pref_title">Toestemming voor advertenties (alleen EU)</string>
+    <string name="title_activity_settings">instellingen</string>
+    <string name="app_name">Pomodoro Me</string>
+    <string name="notification_button_restart">Timing hervatten</string>
+    <string name="notification_button_pause">Timing onderbreken</string>
+    <string name="notification_paused">Timing onderbroken</string>
+    <string name="notification_pomodoro">Vergeet niet om %1$s</string>
+    <string name="notification_rest">Pomodorotijd</string>
+    <string name="notification_auto_start_prompt">Start Pomodoro timing?</string>
+    <string name="snack_auto_start">Start timing?</string>
+    <string name="snack_go">Gaan</string>
+    <string name="notification_auto_start_pressed">Timing gestart</string>
+    <string name="snack_and_notification_auto_stopped">Bereikt einde van de timing voor vandaag</string>
+    <string name="snack_dismiss">Ontslaan</string>
+    <string name="consent_form_show_error">Formulier mislukt, bent u verbonden met het internet?</string>
+    <string name="timed_settings_header">Timing</string>
+    <string name="auto_start_stop_title">Automatisch starten/stoppen</string>
+    <string name="auto_start_time_title">Begin bij</string>
+    <string name="auto_start_title">Automatisch starten</string>
+    <string name="auto_stop_title">Automatisch stoppen</string>
+    <string name="auto_stop_time_title">Stop bij</string>
+    <string name="auto_days_title">Dagen van de week</string>
+    <string name="alerts_header">Waarschuwingen</string>
+    <string name="alerts_play_sounds">Speel ringtones</string>
+    <string name="alerts_vibrate">Trillen</string>
+    <string name="ringtone_pref_title_POMODORO">Pomodoro tijd</string>
+    <string name="ringtone_pref_title_REST">Rusttijd</string>
+    <string name="notifications_on_title">Meldingen verzenden</string>
+    <string name="notifications_on_summary">Wanneer de app niet zichtbaar is</string>
+    <string name="notifications_wake_up_title">Wakker worden uit de slaap</string>
+    <string name="notifications_wake_up_summary">Alleen bij het opladen (afhankelijk van de apparaatinstellingen) EXPERIMENTEEL</string>
+    <string name="notifications_wake_up_dismiss_key_guard_title">Weergeven wanneer u vergrendeld bent</string>
+    <string name="notifications_wake_up_dismiss_key_guard_summary">Poging om over vergrendelingsscherm EXPERIMENTEEL te tonen</string>
+    <string name="reminders_title">Herinneringen aan rusttijd</string>
+    <string name="show_reminders_title">Weergeven in rusttijd</string>
+    <string name="show_reminders_order_title">Reeks weergeven</string>
+    <string name="show_reminders_cycle_title">In volgorde</string>
+    <string name="show_reminders_random_title">Willekeurige</string>
+    <string name="show_reminders_list_title">Lijst met herinneringen</string>
+    <string name="reminders_new_prompt">Nieuwe herinnering</string>
+    <string name="delete_reminder">Herinnering verwijderd</string>
+    <string name="undo_delete_reminder">Ongedaan maken</string>
+    <string name="general_header">Algemene</string>
+    <string name="settingsKeep_screen_awake_while_active_label">Het scherm ingeschakeld houden tijdens de timing</string>
+    <string name="settingsKeep_screen_awake_while_active_summary">(Alleen bij het opladen)</string>
+
+    <string-array name="default_reminders">
+        <item name="item1">Neem een pauze</item>
+        <item name="item2">Beweeg je lichaam</item>
+        <item name="item3">Laat je ogen rusten</item>
+        <item name="item4">Doe wat oefening</item>
+        <item name="item5">Ga naar buiten</item>
+        <item name="item6">Wees aanwezig</item>
+        <item name="item7">Doe iets leuks</item>
+    </string-array>
+</resources>

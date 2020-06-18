@@ -18,6 +18,4 @@
     <dimen name="rest_reminder_padding">10dp</dimen>
     <dimen name="rest_reminder_corner">8dp</dimen>
     <dimen name="text_margin">16dp</dimen>
-    <!-- debugging info -->
-    <string name="dimen_bucket">less than 600dp</string>
 </resources>
