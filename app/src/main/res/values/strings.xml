@@ -63,6 +63,7 @@
     <string name="consent_pref_summary_personalized">Allow personalized ads</string>
     <string name="consent_pref_summary_non_personalized">Do not personalize ads</string>
     <string name="settingsKeep_screen_awake_while_active_label">Keep screen on while timing</string>
+    <string name="settingsKeep_screen_awake_while_active_summary">(Only when charging)</string>
 
     <!-- Keys to Preferences -->
     <string name="keepScreenAwake_pref_key" translatable="false">com.stillwindsoftware.pomodorome.keep_awake</string>

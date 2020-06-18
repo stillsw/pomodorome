@@ -3,6 +3,7 @@ package com.stillwindsoftware.pomodorome
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.os.BatteryManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -89,6 +90,9 @@ class MainActivity : AppCompatActivity() {
     // have a flag so only do it once
     private var awaitTouchToCancelAlarms = false
 
+    private var isKeepScreenOnPref = false // set in onResume to save checking every time it goes round in playing runnable
+    private var lastTestedChargingState = false // tested when playing to see if need to keep screen on
+
     private val timerViewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
     private val remindersViewModel by lazy { ViewModelProvider(this)[RemindersViewModel::class.java] }
 
@@ -159,10 +163,15 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         current = this
 
+        // cache the value, it can't change while the activity is resumed
+        isKeepScreenOnPref = PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.keepScreenAwake_pref_key), false)
+
         // could be that the alarm receiver has started the activity after acquiring wake locks, release them asap
         wakeupToShowReminders()
 
         if (isTrackingTiming) {
+            // will check for charging state changes, as it's a resume make sure it does set it if needed by presetting to false
+            lastTestedChargingState = false
             updateTrackingOnTimedViews(true)
         }
 
@@ -297,11 +306,19 @@ class MainActivity : AppCompatActivity() {
      */
     private fun updateTrackingOnTimedViews(onOrOff: Boolean) {
 
-        // being turned on or off for the first time
-        if (isTrackingTiming != onOrOff) {
-            Log.d(LOG_TAG, "updateTrackingOnTimedViews: change to value, call keep screen on with $onOrOff")
-            setKeepScreenOnWhileRunning(onOrOff)
-        }
+        (getSystemService(Context.BATTERY_SERVICE) as BatteryManager).isCharging
+            .also {chargingState ->
+
+                // some state change, either started/stopped time or the device charging changed
+                //Log.d(LOG_TAG, "updateTrackingOnTimedViews: value requested=$onOrOff was=$isTrackingTiming charging state is=$chargingState was=$lastTestedChargingState")
+
+                if (isTrackingTiming != onOrOff || lastTestedChargingState != chargingState) {
+                    Log.d(LOG_TAG, "updateTrackingOnTimedViews: change to value or charging state, call keep screen on with $onOrOff")
+                    setKeepScreenOnWhileRunning(onOrOff, chargingState)
+                }
+
+                lastTestedChargingState = chargingState
+            }
 
         isTrackingTiming = onOrOff
 
@@ -340,15 +357,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Only turns screen on if the preference is set
+     * Only turns screen on if the preference is set and the device is plugged in (charging)
      * If wake locks are held there's no need either, they'll timeout at the right time
+     * isCharging will only be tested if turnOn is true, which only happens from one place
+     * so it's ok to default it to false
      */
-    private fun setKeepScreenOnWhileRunning(turnOn: Boolean) {
+    private fun setKeepScreenOnWhileRunning(turnOn: Boolean, isCharging: Boolean = false) {
 
         if (wakeupForReminders.hasWakeLocks()) {
             Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: screen is kept on by wake locks")
         }
-        else if (turnOn && PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.keepScreenAwake_pref_key), true)) {
+        else if (turnOn
+            && isKeepScreenOnPref
+            && isCharging) {
                 Log.d(LOG_TAG, "setKeepScreenOnWhileRunning: keeping screen on")
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }

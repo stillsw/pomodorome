@@ -93,26 +93,10 @@ class SettingsActivity : AppCompatActivity(),
     class SettingsFragment : PreferenceFragmentCompat() {
 
         /**
-         * The 2 ringtones used preference summaries come from the ringtone titles
          * Consent in EU only
          */
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             addPreferencesFromResource(R.xml.root_preferences)
-
-            Alarms(requireContext()).also { alarms ->
-
-                for (timerType in TimerType.values()) {
-                    findPreference<Preference>(timerType.ringToneKey)?.let { pref ->
-                        try {
-                            pref.summary = RingtoneManager.getRingtone(context, alarms.getPreferredRingtoneUri(timerType)).getTitle(context)
-                        }
-                        catch (e: Exception) {
-                            Log.w(LOG_TAG, "onCreatePreferences: could not load pomodoro ringtone")
-                            pref.summary = "?"
-                        }
-                    }
-                }
-            }
 
             findPreference<Preference>(getString(R.string.consent_pref_key))?.let { consentPref ->
                 (requireActivity() as SettingsActivity).admobLoader.evaluateConsent { isPersonalized, isNonPersonalized, isEaaOrUnknown ->
