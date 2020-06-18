@@ -34,6 +34,7 @@ class AutoStartStopHelper(private val context: Context) {
         // check auto stop is enabled, otherwise ignore it
         if (!isAutoStopEnabled()) {
             Log.d(LOG_TAG, "onPlayingStarted: auto stop is not enabled, nothing to do")
+            return
         }
 
         Log.d(LOG_TAG, "onPlayingStarted: ")
@@ -54,6 +55,7 @@ class AutoStartStopHelper(private val context: Context) {
         // check auto start is enabled, otherwise nothing to do
         if (!isAutoStartEnabled()) {
             Log.d(LOG_TAG, "onPlayingPausedOrStopped: auto start is not enabled, nothing to do")
+            return
         }
 
         Log.d(LOG_TAG, "onPlayingPausedOrStopped: ")
@@ -72,6 +74,7 @@ class AutoStartStopHelper(private val context: Context) {
         // check auto start is enabled, otherwise ignore it (it should not have fired at all)
         if (!isAutoStartEnabled()) {
             Log.w(LOG_TAG, "onAutoStartAlarm: auto start is not enabled, should not call this method")
+            return
         }
 
         if (MainActivity.current != null) {
@@ -105,6 +108,7 @@ class AutoStartStopHelper(private val context: Context) {
         // check auto stop is enabled, otherwise ignore it (it should not have fired at all)
         if (!isAutoStopEnabled()) {
             Log.d(LOG_TAG, "onAutoStopAlarm: auto stop is not enabled, nothing to do")
+            return
         }
 
         // check for main activity in the foreground, it would need to:
