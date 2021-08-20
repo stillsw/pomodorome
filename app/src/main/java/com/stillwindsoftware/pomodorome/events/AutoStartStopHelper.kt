@@ -319,7 +319,7 @@ class AutoStartStopHelper(private val context: Context) {
             .toSortedSet()
             .also {  firstDay = it.first().toInt() }
             .filter { it > dayOfWeek || (it == dayOfWeek && elapsedMillisToday < tillTimeMillis) }
-            .min()
+            .minOrNull()
             .also {
                 val useDay = it ?: firstDay + 7 // null returned means none returned in this week, so take the first day from next week
                 val daysFromToday = useDay - dayOfWeek
