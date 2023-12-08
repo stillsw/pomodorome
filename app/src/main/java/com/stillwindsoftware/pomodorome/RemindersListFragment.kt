@@ -15,6 +15,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.*
 import android.view.inputmethod.InputMethodManager
+import android.widget.Button
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -32,7 +33,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.stillwindsoftware.pomodorome.RemindersListFragment.Companion.LOG_TAG
 import com.stillwindsoftware.pomodorome.databinding.RemindersListBinding
 import com.stillwindsoftware.pomodorome.viewmodels.*
-import kotlinx.android.synthetic.main.reminders_list.*
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -57,6 +57,8 @@ class RemindersListFragment : DialogFragment() {
     private var maxDialogHeight = 0
     private var maxRecyclerSpace = 0 // set first time layout changes, since begin with match parent, this dictates the min that should always be allowed for
 
+    private lateinit var recycler_view: RecyclerView
+    private lateinit var ok_button: Button
     /**
      * Set the style to show a title
      */
@@ -132,6 +134,9 @@ class RemindersListFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        recycler_view = view.findViewById(R.id.recycler_view)
+        ok_button = view.findViewById(R.id.ok_button)
 
         // want the dialog to be just the right size to display the reminders, not bigger
         // detect how many reminders expect to fit on a screen and if it's not showing any

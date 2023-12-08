@@ -137,7 +137,7 @@ class Alarms(private val context: Context) {
     fun cancelBackgroundAlarm(which: Int) {
         try {
             with(context.getSystemService(ALARM_SERVICE) as AlarmManager) {
-                cancel(PendingIntent.getBroadcast(context, which, Intent(context, AlarmReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT))
+                cancel(PendingIntent.getBroadcast(context, which, Intent(context, AlarmReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                 Log.d(LOG_TAG, "cancelBackgroundAlarm: done")
             }
         }

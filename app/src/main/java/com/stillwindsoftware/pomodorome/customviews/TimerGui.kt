@@ -489,9 +489,7 @@ class TimerGui : AppCompatImageView, View.OnTouchListener{
         return newValue
     }
 
-    override fun onDraw(canvas: Canvas?) {
-        canvas ?: return
-
+    override fun onDraw(canvas: Canvas) {
         clockBackgrd.draw(canvas)
 
         paint.style = Paint.Style.FILL

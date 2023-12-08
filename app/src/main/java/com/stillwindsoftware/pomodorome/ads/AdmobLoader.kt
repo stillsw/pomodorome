@@ -29,17 +29,15 @@ import kotlinx.coroutines.withContext
 import java.net.MalformedURLException
 import java.net.URL
 import java.security.NoSuchAlgorithmException
+import java.util.Arrays
 
 /**
  * Handles the admob stuff
- * To test eu consent, set isDevTestingEuSpoofing to true and check which device it's set up for in isTestSpoofingEu()
  */
-class AdmobLoader(private val activity: AppCompatActivity, private val adView: AdView? = null, private val display: Display? = null) {
+class AdmobLoader(private val activity: AppCompatActivity, private val adView: AdView? = null) {
 
     companion object {
         private const val LOG_TAG = "AdmobLoader"
-        private const val NEXUS_7_DEVICE = "E590725CEA6AC3E836A5E8D767A86882"
-        private const val GALAXY_NEXUS_DEVICE = "F830B9C9F5CFF00A9D43B83572557041"
         private const val SWSW_DATA_CONSENT_POLICY_URL = "https://sites.google.com/view/stillwindswag/data-policy"
         private const val ADMOB_PUB_ID = "pub-1327712413378636"
 
@@ -54,9 +52,6 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
         // set when consent is needed and checks are all good, so can go ahead and show the form when the opportunity presents
         // (see isTriggerConsentForm())
         private var isReadyToShowConsentForm = false
-
-        // for testing eu consent
-        private var isDevTestingEuSpoofing = false
     }
 
     /**
@@ -117,22 +112,16 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
             isAdsInitialised = true
         }
 
-        DisplayMetrics().also { metrics ->
-            display!!.getMetrics(metrics)
-            adView!!.adSize = AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, (metrics.widthPixels / metrics.density).toInt())
-        }
-
         @Suppress("ConstantConditionIf")
         if (!BuildConfig.SHOW_REAL_ADS) { // ie. debug build, include test devices
             val testDevices = ArrayList<String>().apply {
                     add(AdRequest.DEVICE_ID_EMULATOR)
-                    add(NEXUS_7_DEVICE)
-                    add(GALAXY_NEXUS_DEVICE)
                 }
 
            val requestConfig = RequestConfiguration.Builder()
-                    .setTestDeviceIds(testDevices)
-                    .build()
+               .setTestDeviceIds(
+                   Arrays.asList("1626EEA7E43FFF2C1660DB6700735F1F"))
+               .build()
             MobileAds.setRequestConfiguration(requestConfig)
         }
 
@@ -148,6 +137,10 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
                     lp.height = FrameLayout.LayoutParams.WRAP_CONTENT
                     layoutParams = lp
                 }
+            }
+
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                Log.d(LOG_TAG,"Ads load error: $error")
             }
         }
     }
@@ -230,8 +223,6 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
             @Suppress("ConstantConditionIf")
             if (!BuildConfig.SHOW_REAL_ADS) { // ie. debug build
                 consentInformation.addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                consentInformation.addTestDevice(NEXUS_7_DEVICE)
-                consentInformation.addTestDevice(GALAXY_NEXUS_DEVICE)
 
                 if (isTestSpoofingEu()) {
                     Log.d(LOG_TAG, "requestConsentInfoUpdate: spoofing in EU for consent processing")
@@ -367,37 +358,5 @@ class AdmobLoader(private val activity: AppCompatActivity, private val adView: A
     /**
      * Testing only
      */
-    @SuppressLint("HardwareIds", "DefaultLocale")
-    private fun isTestSpoofingEu(): Boolean {
-        fun md5(s: String): String {
-            try {
-                // Create MD5 Hash
-                val digest = java.security.MessageDigest.getInstance("MD5")
-                digest.update(s.toByteArray())
-                val messageDigest = digest.digest()
-
-                // Create Hex String
-                val hexString = StringBuffer()
-                for (i in messageDigest.indices) {
-                    var h = Integer.toHexString((0xFF and messageDigest[i].toInt()))
-                    while (h.length < 2)
-                        h = "0$h"
-                    hexString.append(h)
-                }
-                return hexString.toString()
-
-            } catch (e: NoSuchAlgorithmException) {}
-
-            return ""
-        }
-
-        @Suppress("ConstantConditionIf")
-        if (BuildConfig.SHOW_REAL_ADS || !isDevTestingEuSpoofing) {
-            return false
-        }
-
-        if (deviceId == null) deviceId = md5(Settings.Secure.getString(activity.contentResolver, Settings.Secure.ANDROID_ID)).toUpperCase()
-
-        return deviceId == GALAXY_NEXUS_DEVICE
-    }
+    private fun isTestSpoofingEu() = false
 }

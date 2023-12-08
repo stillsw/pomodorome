@@ -7,15 +7,22 @@ import android.os.BatteryManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.*
+import android.widget.FrameLayout
+import android.widget.ImageView
+import androidx.appcompat.widget.Toolbar
 import androidx.databinding.DataBindingUtil
+import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
+import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.stillwindsoftware.pomodorome.customviews.TimerGui
 import com.stillwindsoftware.pomodorome.databinding.ActivityMainBinding
@@ -26,13 +33,13 @@ import com.stillwindsoftware.pomodorome.events.Alarms
 import com.stillwindsoftware.pomodorome.events.Notifications
 import com.stillwindsoftware.pomodorome.viewmodels.ActiveTimerViewModel
 import com.stillwindsoftware.pomodorome.viewmodels.RemindersViewModel
-import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.lang.Math.toRadians
 import kotlin.math.min
 import kotlin.math.sin
 import com.stillwindsoftware.pomodorome.ads.AdmobLoader
+import com.stillwindsoftware.pomodorome.customviews.TimePickerTextView
 import com.stillwindsoftware.pomodorome.db.TimerState
 import com.stillwindsoftware.pomodorome.viewmodels.WakeupForReminders
 import java.lang.Exception
@@ -96,17 +103,22 @@ class MainActivity : AppCompatActivity() {
     private val timerViewModel by lazy { ViewModelProvider(this)[ActiveTimerViewModel::class.java] }
     private val remindersViewModel by lazy { ViewModelProvider(this)[RemindersViewModel::class.java] }
 
-    private val admobLoader by lazy {
-        AdmobLoader(this, AdView(this@MainActivity)
-            .apply {
-                adUnitId = getString(R.string.admob_banner_id)
-                ad_space.addView(this)
-            }, windowManager.defaultDisplay) }
+    private lateinit var admobLoader: AdmobLoader
 
     private val alarms = Alarms(this)
     private val wakeupForReminders = WakeupForReminders(this)
     private var buttonPressedAtMillis: Long = -1L // don't let alarm sound if within seconds of button press
     private var snackBarItem: Snackbar? = null
+
+    private lateinit var toolbar: Toolbar
+    private lateinit var timer_gui: TimerGui
+    private lateinit var pomodoro_time: TimePickerTextView
+    private lateinit var rest_time: TimePickerTextView
+    private lateinit var play_button: FloatingActionButton
+    private lateinit var edit_button: FloatingActionButton
+    private lateinit var rest_reminder: EmojiAppCompatTextView
+    private lateinit var fade_out: ImageView
+    private lateinit var ad_space: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,6 +127,8 @@ class MainActivity : AppCompatActivity() {
         val binding : ActivityMainBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.lifecycleOwner = this
         binding.viewmodel = timerViewModel
+
+        initViewVars();
 
         setSupportActionBar(toolbar)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notifications(this).createNotificationChannel()
@@ -125,7 +139,30 @@ class MainActivity : AppCompatActivity() {
         remindersViewModel.repository.reminders.observe(this, Observer {  }) // for now just have an active observer to trigger list population
 
         // admob
+        initAdmob()
+    }
+
+    private fun initAdmob() {
+        val adView = AdView(this@MainActivity).apply {
+            adUnitId = getString(R.string.admob_banner_id)
+            setAdSize(AdSize.FLUID)
+            ad_space.addView(this)
+        }
+
+        admobLoader = AdmobLoader(this, adView)
         admobLoader.initialize()
+    }
+
+    private fun initViewVars() {
+        toolbar = findViewById(R.id.toolbar)
+        timer_gui = findViewById(R.id.timer_gui)
+        pomodoro_time = findViewById(R.id.pomodoro_time)
+        rest_time = findViewById(R.id.rest_time)
+        play_button = findViewById(R.id.play_button)
+        edit_button = findViewById(R.id.edit_button)
+        rest_reminder = findViewById(R.id.rest_reminder)
+        fade_out = findViewById(R.id.fade_out)
+        ad_space = findViewById(R.id.ad_space)
     }
 
     fun callbackChangeToTimer(activeTimer: ActiveTimer) {

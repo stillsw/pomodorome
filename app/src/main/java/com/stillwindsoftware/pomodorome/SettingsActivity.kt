@@ -48,7 +48,7 @@ class SettingsActivity : AppCompatActivity(),
 
     override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat, pref: Preference): Boolean {
         val args = pref.extras
-        val fragment = supportFragmentManager.fragmentFactory.instantiate(classLoader, pref.fragment)
+        val fragment = supportFragmentManager.fragmentFactory.instantiate(classLoader, pref.fragment!!)
         fragment.arguments = args
         fragment.setTargetFragment(caller, 0)
         // Replace the existing Fragment with the new Fragment
@@ -219,7 +219,7 @@ class SettingsActivity : AppCompatActivity(),
 
         private fun setPreferredRingtone(timerType: TimerType, ringtoneUri: Uri) {
 
-            with(PreferenceManager.getDefaultSharedPreferences(context)) {
+            with(PreferenceManager.getDefaultSharedPreferences(requireContext())) {
 
                 edit().apply {
                     putString(timerType.ringToneKey, ringtoneUri.toString())
@@ -254,7 +254,7 @@ class SettingsActivity : AppCompatActivity(),
          * The preference was cached when setting up, if it's there, then that fragment was loaded
          * so check for it being changed to set the summary
          */
-        override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
+        override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
 
             if (getString(R.string.auto_days_pref_key) == key) {
 
@@ -288,7 +288,7 @@ class SettingsActivity : AppCompatActivity(),
 
             val timeFormat = DateFormat.getTimeFormat(context).apply { timeZone = TimeZone.getTimeZone("GMT") }
 
-            with(PreferenceManager.getDefaultSharedPreferences(context)) {
+            with(PreferenceManager.getDefaultSharedPreferences(requireContext())) {
 
                 // there are 2 preferences for start/stop times, each with a different default value
 
@@ -367,7 +367,7 @@ class SettingsActivity : AppCompatActivity(),
          */
         override fun onPreferenceTreeClick(preference: Preference): Boolean {
 
-            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context)
+            val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val autoStartKey = getString(R.string.auto_start_time_pref_key)
             val autoStopKey = getString(R.string.auto_stop_time_pref_key)
 
