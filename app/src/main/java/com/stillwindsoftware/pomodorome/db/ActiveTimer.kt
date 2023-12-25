@@ -81,9 +81,7 @@ data class ActiveTimer(
     fun getElapsedMillis(now: Long): Long {
         val fromTime = if (isPaused()) pauseAtTime else now
         with(fromTime - startTime - previousPausesAccumulated) {       // this = total elapsed since start
-            return (this % (pomodoroDuration + restDuration)).also {     // it = elapsed in this timing
-                Log.v(LOG_TAG, "getElapsedMillis: totalMillis=$this elapsedTime=$it bothDurations=${pomodoroDuration + restDuration} pom=$pomodoroDuration rest=$restDuration")
-            }
+            return (this % (pomodoroDuration + restDuration))
         }
     }
 

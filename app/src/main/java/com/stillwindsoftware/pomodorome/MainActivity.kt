@@ -1,18 +1,22 @@
 package com.stillwindsoftware.pomodorome
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.util.Log
 import android.view.*
 import android.widget.FrameLayout
 import android.widget.ImageView
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.Toolbar
+import androidx.core.app.ActivityCompat
 import androidx.databinding.DataBindingUtil
 import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.lifecycle.Lifecycle
@@ -53,8 +57,8 @@ class MainActivity : AppCompatActivity() {
     companion object {
         var current: MainActivity? = null // singleton instance so AutoStartStopHelper can trigger
 
-        @Suppress("unused")
         private const val LOG_TAG = "MainActivity"
+        private const val PERM_REQ_CODE = 987654
         private const val PLAY_CLICKS_BEFORE_ADS_CONSENT = 2
         const val TIMER_DELAY = 100L        // ticking interval, not too long otherwise seconds might not change quick enough
 
@@ -67,14 +71,16 @@ class MainActivity : AppCompatActivity() {
     // show the start frame, it appears to be a bug and nothing I've tried works, so in those
     // cases just show the static image that should be shown
 
+    private var alreadyRequestedNotificationsPermissions = false
+    private var hasNotifificationsPermissions = false
     private val playToPauseDrawable by lazy {AnimatedVectorDrawableCompat.create(this, R.drawable.play_to_pause_avd)!! }
     private val pauseToPlayDrawable by lazy { AnimatedVectorDrawableCompat.create(this, R.drawable.pause_to_play_avd)!! }
     private val pencilToStopDrawable by lazy { AnimatedVectorDrawableCompat.create(this, R.drawable.pencil_to_stop_avd)!! }
     private val stopToPencilDrawable by lazy { AnimatedVectorDrawableCompat.create(this, R.drawable.stop_to_pencil_avd)!! }
-    private val stopDrawable by lazy { getDrawable(R.drawable.stop_vd)!! }
-    private val pencilDrawable by lazy { getDrawable(R.drawable.pencil_vd)!! }
-    private val playDrawable by lazy { getDrawable(R.drawable.play_vd)!! }
-    private val pauseDrawable by lazy { getDrawable(R.drawable.pause_vd)!! }
+    private val stopDrawable by lazy { AppCompatResources.getDrawable(this, R.drawable.stop_vd) }
+    private val pencilDrawable by lazy { AppCompatResources.getDrawable(this, R.drawable.pencil_vd) }
+    private val playDrawable by lazy { AppCompatResources.getDrawable(this, R.drawable.play_vd) }
+    private val pauseDrawable by lazy { AppCompatResources.getDrawable(this, R.drawable.pause_vd) }
     private var transitioningToTimerState: TimerState? = null // handles the case where a button is pressed and want the animation to play out
 
     private var lastReminderTextDelta = Float.MAX_VALUE
@@ -131,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         initViewVars();
 
         setSupportActionBar(toolbar)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notifications(this).createNotificationChannel()
+        Notifications(this).createNotificationChannel()
 
         timer_gui.timerWidgets[TimerGui.POMODORO].timePickerTextView = pomodoro_time
         timer_gui.timerWidgets[TimerGui.REST].timePickerTextView = rest_time
@@ -140,6 +146,8 @@ class MainActivity : AppCompatActivity() {
 
         // admob
         initAdmob()
+
+        alarms.requestPermissionsIfNeeded()
     }
 
     private fun initAdmob() {
@@ -234,56 +242,49 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+        // fairly sure this is going to work inconsistently across devices
+        // since API 27 if the device is secured, the user will have to enter credentials
+        // (on emulator the activity is visible underneath)
+         PreferenceManager.getDefaultSharedPreferences(this)
+            .also { prefs ->
 
-            // fairly sure this is going to work inconsistently across devices
-            // since API 27 if the device is secured, the user will have to enter credentials
-            // (on emulator the activity is visible underneath)
-             PreferenceManager.getDefaultSharedPreferences(this)
-                .also { prefs ->
+                // the keyguard service "appears" to only bring up the keyguard for the user
+                // to enter the pin, so check the user preference to allow it to be
+                // dismissed by the deprecated method
 
-                    // the keyguard service "appears" to only bring up the keyguard for the user
-                    // to enter the pin, so check the user preference to allow it to be
-                    // dismissed by the deprecated method
-
-                    if (prefs.getBoolean(getString(R.string.notifications_wake_up_pref_dismiss_key), true)
-                        && wakeupUsingDeprecatedMethod()) {
-                            Log.d(LOG_TAG, "wakeupToShowReminders: user allows using deprecated method to disable keyguard")
-                    }
-                    else {
-                        // user has chosen to do the default behaviour (show security to unlock it)
-                        Log.d(LOG_TAG, "wakeupToShowReminders: notification from lock screen, turn on and set to show (build o_mri)")
-                        setShowWhenLocked(true)
-                        setTurnScreenOn(true)
-
-                        (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager)
-                            .requestDismissKeyguard(
-                                this,
-                                object : KeyguardManager.KeyguardDismissCallback() {
-
-                                    override fun onDismissSucceeded() {
-                                        Log.d(LOG_TAG, "wakeupToShowReminders:onDismissSucceeded")
-                                    }
-
-                                    override fun onDismissCancelled() {
-                                        Log.d(LOG_TAG, "wakeupToShowReminders:onDismissCancelled")
-                                        setShowWhenLocked(false)
-                                        setTurnScreenOn(false)
-                                    }
-
-                                    override fun onDismissError() {
-                                        Log.d(LOG_TAG, "wakeupToShowReminders:onDismissError")
-                                        setShowWhenLocked(false)
-                                        setTurnScreenOn(false)
-                                    }
-                                })
-                    }
+                if (prefs.getBoolean(getString(R.string.notifications_wake_up_pref_dismiss_key), true)
+                    && wakeupUsingDeprecatedMethod()) {
+                        Log.d(LOG_TAG, "wakeupToShowReminders: user allows using deprecated method to disable keyguard")
                 }
-        }
-        else {
-            Log.d(LOG_TAG, "wakeupToShowReminders: notification from lock screen, turn on and set to show (deprecated version)")
-            wakeupUsingDeprecatedMethod()
-        }
+                else {
+                    // user has chosen to do the default behaviour (show security to unlock it)
+                    Log.d(LOG_TAG, "wakeupToShowReminders: notification from lock screen, turn on and set to show (build o_mri)")
+                    setShowWhenLocked(true)
+                    setTurnScreenOn(true)
+
+                    (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager)
+                        .requestDismissKeyguard(
+                            this,
+                            object : KeyguardManager.KeyguardDismissCallback() {
+
+                                override fun onDismissSucceeded() {
+                                    Log.d(LOG_TAG, "wakeupToShowReminders:onDismissSucceeded")
+                                }
+
+                                override fun onDismissCancelled() {
+                                    Log.d(LOG_TAG, "wakeupToShowReminders:onDismissCancelled")
+                                    setShowWhenLocked(false)
+                                    setTurnScreenOn(false)
+                                }
+
+                                override fun onDismissError() {
+                                    Log.d(LOG_TAG, "wakeupToShowReminders:onDismissError")
+                                    setShowWhenLocked(false)
+                                    setTurnScreenOn(false)
+                                }
+                            })
+                }
+            }
     }
 
     /**
@@ -518,6 +519,8 @@ class MainActivity : AppCompatActivity() {
      */
     fun playPausePressed(@Suppress("UNUSED_PARAMETER") view: View) {
 
+        checkOnceForNotificationsPermissions()
+
         // in case there's a message to do something waiting, once the user has interacted can remove it
         anyButtonPressed()
 
@@ -545,6 +548,38 @@ class MainActivity : AppCompatActivity() {
                         it.start()
                     })
             }
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private fun checkOnceForNotificationsPermissions() {
+        if (hasNotifificationsPermissions || alreadyRequestedNotificationsPermissions) return
+
+        hasNotifificationsPermissions = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasNotifificationsPermissions) {
+            alreadyRequestedNotificationsPermissions = true
+
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), PERM_REQ_CODE)
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+
+    }
+
+    @Suppress("UnusedEquals")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        hasNotifificationsPermissions == (requestCode == PERM_REQ_CODE && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+        if (!hasNotifificationsPermissions) {
+            Log.w(LOG_TAG, "onRequestPermissionsResult: notifications permissions not granted")
         }
     }
 

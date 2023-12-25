@@ -3,6 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 
 android {
+    namespace 'com.stillwindsoftware.pomodorome'
 
     dataBinding {
         enabled true
@@ -10,10 +11,10 @@ android {
     defaultConfig {
         applicationId "com.stillwindsoftware.pomodorome"
         compileSdk 34
-        minSdkVersion 24
-        targetSdkVersion 33
-        versionCode 5
-        versionName "1.2.0"
+        minSdkVersion 28
+        targetSdkVersion 34
+        versionCode 6
+        versionName "1.3.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField 'boolean', 'SHOW_REAL_ADS', 'false'
     }
@@ -46,7 +47,7 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
-    namespace 'com.stillwindsoftware.pomodorome'
+
     buildFeatures {
         buildConfig true
     }

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Context.ALARM_SERVICE
 import android.content.Context.VIBRATOR_SERVICE
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -48,6 +49,40 @@ class Alarms(private val context: Context) {
         internal const val DATA_ALARM_TRIGGER_FOR_TYPE = "alarm_for_type"
         internal const val DATA_ALARM_TRIGGER_MILLIS = "alarm_trigger_millis"
         private const val ALARM_SOUND_MILLIS = 5000L
+    }
+
+    private var hasAlarmPermission = false
+
+    /**
+     * Called from the main activity.onCreate
+     */
+    fun requestPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            hasAlarmPermission = true
+            Log.d(LOG_TAG, "requestPermissionsIfNeeded: permission not needed")
+            return
+        }
+
+        context.registerReceiver(AlarmPermissionReceiver(this), IntentFilter(AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED))
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        hasAlarmPermission = alarmManager.canScheduleExactAlarms()
+
+        if (!hasAlarmPermission) {
+            Log.d(LOG_TAG, "requestPermissionsIfNeeded: needed for exact alarms, requesting...")
+            context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+        }
+        else {
+            Log.d(LOG_TAG, "requestPermissionsIfNeeded: have permission already")
+        }
+    }
+
+    private class AlarmPermissionReceiver(val alarms: Alarms) : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED) {
+                alarms.hasAlarmPermission = true;
+                Log.d(LOG_TAG, "AlarmPermissionReceiver: alarm permission granted")
+            }
+        }
     }
 
     /**
@@ -92,11 +127,9 @@ class Alarms(private val context: Context) {
         cancelBackgroundAlarm(which)
 
         try {
-            (context.getSystemService(ALARM_SERVICE) as AlarmManager)
-                .setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis,
-                    PendingIntent.getBroadcast(context, which,
-                        Intent(context, AlarmReceiver::class.java).apply { putExtra(REQ_CODE, which) },
-                        PendingIntent.FLAG_UPDATE_CURRENT))
+            val pendingIntent = PendingIntent.getBroadcast(context, which,
+                Intent(context, AlarmReceiver::class.java).apply { putExtra(REQ_CODE, which) }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+            setAlarmForIntentAfterMillis(triggerAtMillis, pendingIntent)
 
             // format just to log nicely, for efficiency only do it in debug
             if (BuildConfig.DEBUG) {
@@ -111,21 +144,33 @@ class Alarms(private val context: Context) {
 
     private fun registerBackgroundAlarm(timerType: TimerType, triggerAtMillis: Long) {
         try {
-            Intent(context, AlarmReceiver::class.java)
+            val intent = Intent(context, AlarmReceiver::class.java)
                 .apply {
                     putExtra(REQ_CODE, REQ_CODE_ALARM)
                     putExtra(DATA_ALARM_TRIGGER_FOR_TYPE, timerType.name)
                     putExtra(DATA_ALARM_TRIGGER_MILLIS, triggerAtMillis)
                 }
-                .also {
-                    with(context.getSystemService(ALARM_SERVICE) as AlarmManager) {
-                        setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis,
-                            PendingIntent.getBroadcast(context, REQ_CODE_ALARM, it, PendingIntent.FLAG_UPDATE_CURRENT))
-                    }
-                }
+            val pendingIntent = PendingIntent.getBroadcast(context, REQ_CODE_ALARM, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+            setAlarmForIntentAfterMillis(triggerAtMillis, pendingIntent)
         }
         catch (e: Exception) {
             Log.d(LOG_TAG, "registerBackgroundAlarm: failed with exception", e)
+        }
+    }
+
+    private fun setAlarmForIntentAfterMillis(triggerAtMillis: Long, pendingIntent: PendingIntent) {
+        val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
+        if (hasAlarmPermission &&
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms())
+        ) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+        } else {
+            hasAlarmPermission = false // in case it was given before
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
         }
     }
 
@@ -159,16 +204,7 @@ class Alarms(private val context: Context) {
 
                 if (sharedPreferences.getBoolean(context.getString(R.string.vibrate_pref_key), false)) {
 
-                    (context.getSystemService(VIBRATOR_SERVICE) as Vibrator)
-                        .also {
-                            if (Build.VERSION.SDK_INT >= 26) {
-                                it.vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-                            }
-                            else {
-                                @Suppress("DEPRECATION")
-                                it.vibrate(200)
-                            }
-                        }
+                    (context.getSystemService(VIBRATOR_SERVICE) as Vibrator).vibrate(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
                 }
 
                 // does preference say ok to play sound?

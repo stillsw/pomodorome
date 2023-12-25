@@ -51,22 +51,22 @@ class RemindersHelper(private val context: Context) {
      * this method is called if order isn't set to random or just ensure
      * the same reminder doesn't come up twice in a row when it is set to random
      */
-    fun getNextReminder(isNotification: Boolean = false): String? {
+    fun getNextReminder(isNotification: Boolean = false): String {
 
         // in the case where a notification has seen a reminder, it is cached so the activity will see the same thing when it opens up
         // so when the activity is looking and there's a cached value, just hand it back that one and go no further
 
         if (!isNotification && notificationSawReminder != null) {
-            return notificationSawReminder.also { notificationSawReminder = null }
+            return notificationSawReminder!!.also { notificationSawReminder = null }
         }
 
         // utility function
 
-        fun findNextReminderText(inOrder: Boolean, reminders: List<String>): String? {
+        fun findNextReminderText(inOrder: Boolean, reminders: List<String>): String {
 
             reminders.let {
                 when {
-                    reminders.isEmpty() -> return null
+                    reminders.isEmpty() -> return ""
                     reminders.size == 1 -> return reminders.first()
                     inOrder -> {
 
@@ -95,12 +95,12 @@ class RemindersHelper(private val context: Context) {
 
             if (!prefs.contains(REMINDERS_LIST_PREF)) {
                 Log.d(LOG_TAG, "getNextReminder: no reminders in shared prefs")
-                return null
+                return ""
             }
 
             prefs.getStringSet(REMINDERS_LIST_PREF, null)!!.sorted().also {reminders->
                 return findNextReminderText(prefs.getBoolean(context.resources.getString(R.string.showReminders_random_pref_key), true), reminders)
-                    ?.also {
+                    .also {
                         lastReminderIndex = reminders.indexOf(it)
 
                         // when the notification has been viewed by a notification, the next time the activity is shown, it should also see that

@@ -1,11 +1,15 @@
 package com.stillwindsoftware.pomodorome.events
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.preference.PreferenceManager
@@ -52,9 +56,7 @@ class Notifications(private val context: Context) {
             return
         }
 
-        NotificationCompat.Builder(context,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) NOTIFICATION_CHANNEL_ID else "")
-
+        NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.app_name))
             .setSmallIcon(R.drawable.ic_timer_notification)
             .setAutoCancel(true)
@@ -63,6 +65,10 @@ class Notifications(private val context: Context) {
 
             // content intent is what happens if the user just taps on the notification, open activity
             .setContentIntent(makePendingIntentForAlarmReceiver(REQ_CODE_NOTIFICATION))
+            // to get the notification to show on the lock screen
+            .setFullScreenIntent(
+                PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE), true)
 
             .also { builder ->
                 if (isStart) {
@@ -76,7 +82,12 @@ class Notifications(private val context: Context) {
                 NotificationManagerCompat.from(context)
                     .apply {
                         builder.priority = NotificationManager.IMPORTANCE_HIGH
-                        notify(OTHER_ALARMS_NOTIFICATION_ID, builder.build())
+                        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                            notify(OTHER_ALARMS_NOTIFICATION_ID, builder.build())
+                        }
+                        else {
+                            Log.w(LOG_TAG, "sendNotification: permission missing to send notification")
+                        }
                     }
             }
     }
@@ -92,9 +103,7 @@ class Notifications(private val context: Context) {
             return
         }
 
-        NotificationCompat.Builder(context,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) NOTIFICATION_CHANNEL_ID else "")
-
+        NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(getNotificationMessage(currentState, timerType))
             .setSmallIcon(R.drawable.ic_timer_notification)
@@ -104,6 +113,10 @@ class Notifications(private val context: Context) {
 
             // content intent is what happens if the user just taps on the notification, open activity
             .setContentIntent(makePendingIntentForAlarmReceiver(REQ_CODE_NOTIFICATION, timerType, triggerAtMillis))
+            // to get the notification to show on the lock screen
+            .setFullScreenIntent(
+                PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE), true)
 
             .also { builder ->
 
@@ -126,21 +139,27 @@ class Notifications(private val context: Context) {
                         builder.setFullScreenIntent(PendingIntent.getActivity(context, 0,
                             Intent(context, MainActivity::class.java)
                                 .apply { putExtra(REQ_CODE, REQ_CODE_NOTIFICATION_FULL_SCREEN_INTENT) }
-                            , PendingIntent.FLAG_ONE_SHOT), true)
+                            , PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE), true)
                     }
                 }
 
-                NotificationManagerCompat.from(context)
-                    .apply {
-                        builder.priority = NotificationManager.IMPORTANCE_HIGH
-                        notify(REGULAR_ALARMS_NOTIFICATION_ID, builder.build())
-                    }
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    NotificationManagerCompat.from(context)
+                        .apply {
+                            builder.priority = NotificationManager.IMPORTANCE_HIGH
+                            notify(REGULAR_ALARMS_NOTIFICATION_ID, builder.build())
+                        }
+                }
+                else {
+                    Log.w(LOG_TAG, "sendNotification: permission missing to send notification")
+                }
             }
     }
 
     /**
      * A simple string lookup, except for when it's a rest timer and need to lookup a reminder text
      */
+    @SuppressLint("StringFormatInvalid")
     private fun getNotificationMessage(currentState: TimerState, timerType: TimerType): String {
 
         return when {
@@ -158,7 +177,7 @@ class Notifications(private val context: Context) {
                     if (timerType != null) putExtra(DATA_ALARM_TRIGGER_FOR_TYPE, timerType.name)
                     if (triggerAtMillis != null) putExtra(DATA_ALARM_TRIGGER_MILLIS, triggerAtMillis)
                 }
-            , PendingIntent.FLAG_UPDATE_CURRENT)
+            , PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
     }
 
     /**
@@ -172,7 +191,6 @@ class Notifications(private val context: Context) {
     /**
      * Called from MainActivity.onCreate() to ensure the notification channel is created
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     fun createNotificationChannel() {
 
         NotificationChannel(NOTIFICATION_CHANNEL_ID,
